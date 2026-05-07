@@ -272,8 +272,6 @@ export const refresh = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const refresh_token = req.cookies.refresh_token;
 
-    console.log("TOKENNNNNNNNNNNNN: ", refresh_token);
-
     if (!refresh_token) {
       return res.status(401).json({
         success: false,

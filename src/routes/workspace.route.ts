@@ -10,6 +10,7 @@ import {
   fetchStatusByWorkspaceController,
   fetchActivityController,
   fetchWorkspaceMembers,
+  getCompletedTasksCount,
 } from "../controller/workspace.controller.js";
 
 const router = Router();
@@ -31,5 +32,6 @@ router.get(
   fetchStatusByWorkspaceController,
 );
 router.get("/activities/:workspaceId", authMiddleware, fetchActivityController);
+router.get("/completed/count", authMiddleware, getCompletedTasksCount);
 
 export default router;

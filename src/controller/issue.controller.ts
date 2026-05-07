@@ -3,53 +3,33 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
 import { activityLogger } from "../utils/activityHandler.js";
 
-// export const fetchIssues = asyncHandler(
-//   async (req: Request, res: Response, next: NextFunction) => {
-//     const workspaceId = req.params.workspaceId as string;
+export const fetchIssuesController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const workspaceId = req.params.workspaceId as string;
 
-//     if (!workspaceId) {
-//       return res.status(400).json({
-//         success: false,
-//         status: 400,
-//         code: "MISSING_FIELDS",
-//         message: "workspaceId is required",
-//       });
-//     }
+    if (!workspaceId) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "MISSING_FIELDS",
+        message: "workspaceId is required",
+      });
+    }
 
-//     const issues = await prisma.issue.findMany({
-//       where: { project: { team: { workspaceId } } },
-//       select: {
-//         id: true,
-//         status: {
-//           select: {
-//             id: true,
-//             name: true,
-//             color: true,
-//           },
-//         },
-//         assignee: {
-//           select: {
-//             id: true,
-//           },
-//         },
-//         project: {
-//           select: {
-//             id: true,
-//           },
-//         },
-//       },
-//       orderBy: { createdAt: "desc" },
-//     });
+    const issues = await prisma.issue.findMany({
+      where: { project: { team: { workspaceId } } },
+      orderBy: { createdAt: "desc" },
+    });
 
-//     return res.status(200).json({
-//       success: true,
-//       status: 200,
-//       code: "ISSUES_FETCHED",
-//       message: "Issues fetched successfully.",
-//       data: { issues },
-//     });
-//   },
-// );
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "ISSUES_FETCHED",
+      message: "Issues fetched successfully.",
+      data: { issues },
+    });
+  },
+);
 
 export const createIssueController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -57,7 +37,7 @@ export const createIssueController = asyncHandler(
     const {
       title,
       description,
-      userId: assigneeId,
+      userId,
       priority,
       status,
       projectId,
@@ -80,7 +60,7 @@ export const createIssueController = asyncHandler(
         description,
         priority,
         statusId: status,
-        assigneeId,
+        assigneeId: !userId ? currentUser : userId,
         projectId,
       },
     });
@@ -273,6 +253,33 @@ export const deleteIssueController = asyncHandler(
       status: 200,
       code: "ISSUE_DELETED",
       message: "Issue deleted successfully.",
+    });
+  },
+);
+
+export const fetchIssueByProjectController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { projectId } = req.params;
+
+    if (typeof projectId !== "string") {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "MISSING_FIELDS",
+        message: "Project id is required",
+      });
+    }
+
+    const issueList = await prisma.issue.findMany({
+      where: { projectId },
+    });
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "PROJECT_ISSUES_FETCHED",
+      message: "Issue fetched successfully.",
+      data: { issues: issueList },
     });
   },
 );

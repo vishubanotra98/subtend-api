@@ -407,9 +407,9 @@ export const fetchActivityController = asyncHandler(
 // Dashboard Data
 export const getCompletedTasksCount = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { statusId, workspaceId } = req.body;
+    const { statusId, workspaceId } = req.query;
 
-    if (!statusId || !workspaceId) {
+    if (typeof statusId !== "string" || typeof workspaceId !== "string") {
       return res.status(400).json({
         success: false,
         status: 400,
@@ -463,15 +463,3 @@ export const getCompletedTasksCount = asyncHandler(
     });
   },
 );
-
-// export const dashboardCountController = asyncHandler(
-//   async (req: Request, res: Response, next: NextFunction) => {
-//     const workspaceId = req.params.workspaceId as string;
-
-//     const totalTeamCount = prisma.team.count({ where: { workspaceId } });
-//     const totalProjectsCount = prisma.project.count({
-//       where: { team: { workspaceId } },
-//     });
-
-//   },
-// );
