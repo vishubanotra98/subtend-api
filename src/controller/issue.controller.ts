@@ -207,10 +207,10 @@ export const editIssueController = asyncHandler(
 
 export const deleteIssueController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { workspaceId, issueId, projectId, teamId } = req.body;
+    const { workspaceId, issueId, projectId, teamId } = req.query;
     const currentUser = req.userId;
 
-    if (!issueId || !workspaceId || !teamId || !projectId) {
+    if (typeof issueId !== "string" || !workspaceId || !teamId || !projectId) {
       return res.status(400).json({
         success: false,
         status: 400,
@@ -286,25 +286,29 @@ export const fetchIssueByProjectController = asyncHandler(
 
 export const moveCardController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const {
-      sourceId: issueId,
-      targetId: statusId,
-      workspaceId,
-      teamId,
-    } = req.body;
+    const { sourceId, targetId, workspaceId, teamId } = req.body;
+
+    if (!sourceId || !targetId || !workspaceId || !teamId) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "MISSING_FIELDS",
+        message: "Project id is required",
+      });
+    }
 
     const currentUser = req.userId;
 
     const fetchCard = await prisma.issue.findFirst({
-      where: { id: issueId },
+      where: { id: sourceId },
     });
 
     const previousStatus = fetchCard?.statusId;
 
     const card = await prisma.issue.update({
-      where: { id: issueId },
+      where: { id: sourceId },
       data: {
-        statusId: statusId,
+        statusId: targetId,
       },
     });
 
@@ -326,6 +330,13 @@ export const moveCardController = asyncHandler(
       },
     };
 
-    const activity = await activityLogger(loggerData);
+    await activityLogger(loggerData);
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "ISSUES_MOVED",
+      message: "Issue moved successfully.",
+    });
   },
 );

@@ -116,3 +116,60 @@ export const inviteUserController = asyncHandler(
     });
   },
 );
+
+export const verifyInviteMemberController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { email, token } = req.body;
+
+    console.log("EMAIL: ", email);
+    console.log("TOKEN: ", token);
+
+    if (!token || !email) {
+      return res.status(401).json({
+        success: false,
+        status: 401,
+        code: "INVALID_USER",
+        message: "Invalid User.",
+      });
+    }
+
+    const existingInvite = await prisma.invitation.findUnique({
+      where: { token: token },
+    });
+
+    if (!existingInvite) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "INVALID_TOKEN",
+        message: "Invalid invitation token.",
+      });
+    }
+
+    if (existingInvite.email !== email) {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        code: "EMAIL_MISMATCH",
+        message: "This invitation belongs to a different email address.",
+      });
+    }
+
+    const hasExpired = new Date(existingInvite.expires) < new Date();
+    if (hasExpired) {
+      return res.status(410).json({
+        success: false,
+        status: 410,
+        code: "INVITATION_EXPIRED",
+        message: "Invitation has expired.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "MEMBER_VERIFIED",
+      message: "Member verified successfully.",
+    });
+  },
+);
