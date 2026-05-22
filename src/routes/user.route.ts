@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import {
+  changeRoleController,
   fetchUserController,
   inviteUserController,
   verifyInviteMemberController,
@@ -11,5 +12,6 @@ const router = Router();
 router.get("/user", authMiddleware, fetchUserController);
 router.post("/member-invite", authMiddleware, inviteUserController);
 router.post("/verify-invite", verifyInviteMemberController);
+router.post("/change-role", authMiddleware, changeRoleController);
 
 export default router;

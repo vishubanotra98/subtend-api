@@ -173,3 +173,94 @@ export const verifyInviteMemberController = asyncHandler(
     });
   },
 );
+
+export const changeRoleController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { workspaceId, targetUserId, role } = req.body;
+    const userId = req.userId;
+
+    if (!workspaceId || !targetUserId || !role) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "MISSING_FIELDS",
+        message: "workspaceId, targetUserId and role are required.",
+      });
+    }
+
+    const currentUser = await prisma.workspaceMembers.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
+      },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "MEMBERSHIP_NOT_FOUND",
+        message: "You are not a member of this workspace.",
+      });
+    }
+
+    if (currentUser.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        code: "ACCESS_DENIED",
+        message: "Only workspace administrators can change member roles.",
+      });
+    }
+
+    const validRoles = ["MEMBER", "ADMIN"];
+
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "INVALID_ROLE",
+        message: "Role must be MEMBER or ADMIN.",
+      });
+    }
+
+    const targetMember = await prisma.workspaceMembers.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId,
+        },
+      },
+    });
+
+    if (!targetMember) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "TARGET_MEMBER_NOT_FOUND",
+        message: "Target user is not a member of this workspace.",
+      });
+    }
+
+    await prisma.workspaceMembers.update({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId,
+        },
+      },
+      data: {
+        role,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "ROLE_CHANGED",
+      message: "Role changed successfully.",
+    });
+  },
+);
