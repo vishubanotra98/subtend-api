@@ -4,6 +4,7 @@ import {
   changeRoleController,
   fetchUserController,
   inviteUserController,
+  removeUserFromWorkspaceController,
   verifyInviteMemberController,
 } from "../controller/user.controller.js";
 
@@ -13,5 +14,10 @@ router.get("/user", authMiddleware, fetchUserController);
 router.post("/member-invite", authMiddleware, inviteUserController);
 router.post("/verify-invite", verifyInviteMemberController);
 router.post("/change-role", authMiddleware, changeRoleController);
+router.delete(
+  "/remove-user",
+  authMiddleware,
+  removeUserFromWorkspaceController,
+);
 
 export default router;

@@ -176,7 +176,7 @@ export const verifyInviteMemberController = asyncHandler(
 
 export const changeRoleController = asyncHandler(
   async (req: Request, res: Response) => {
-    const { workspaceId, targetUserId, role } = req.body;
+    const { workspaceId, userId: targetUserId, role } = req.body;
     const userId = req.userId;
 
     if (!workspaceId || !targetUserId || !role) {
@@ -261,6 +261,66 @@ export const changeRoleController = asyncHandler(
       status: 200,
       code: "ROLE_CHANGED",
       message: "Role changed successfully.",
+    });
+  },
+);
+
+export const removeUserFromWorkspaceController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const workspaceId = req.query?.workspaceId as string;
+    const targetUserId = req.query?.userId as string;
+    const userId = req.userId;
+
+    if (!workspaceId || !targetUserId) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "MISSING_FIELDS",
+        message: "workspaceId and targetUserId are required.",
+      });
+    }
+
+    const currentUser = await prisma.workspaceMembers.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
+      },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "MEMBERSHIP_NOT_FOUND",
+        message: "You are not a member of this workspace.",
+      });
+    }
+
+    if (currentUser.role !== "ADMIN") {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        code: "ACCESS_DENIED",
+        message: "Only workspace administrators can change member roles.",
+      });
+    }
+
+    await prisma.workspaceMembers.delete({
+      where: {
+        userId_workspaceId: {
+          userId: targetUserId,
+          workspaceId,
+        },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "MEMBER_REMOVED",
+      message: "Member removed successfully.",
     });
   },
 );
