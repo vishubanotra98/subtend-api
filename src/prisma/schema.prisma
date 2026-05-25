@@ -24,25 +24,37 @@ model RefreshToken {
 }
 
 model User {
-  id                    String             @id @default(cuid())
+  id                    String                @id @default(cuid())
   name                  String?
-  firstName             String?            @map("first_name")
-  lastName              String?            @map("last_name")
-  email                 String?            @unique
+  firstName             String?               @map("first_name")
+  lastName              String?               @map("last_name")
+  email                 String?               @unique
   password              String?
-  emailVerified         Boolean?           @map("email_verified")
+  emailVerified         Boolean?              @map("email_verified")
   tokenExpiry           DateTime?
   verificationToken     String?
   refreshTokens         RefreshToken[]
   image                 String?
   workspaces            WorkspaceMembers[]
   teams                 TeamMembers[]
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  assignedIssues        Issue[]            @relation("Assignee")
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  assignedIssues        Issue[]               @relation("Assignee")
   lastActiveWorkspaceId String?
+  federatedCredentials  FederatedCredential[]
 
   @@map("users")
+}
+
+model FederatedCredential {
+  id       String @id @default(cuid())
+  userId   String
+  provider String
+  subject  String
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([provider, subject])
+  @@map("federated_credentials")
 }
 
 model Workspace {
