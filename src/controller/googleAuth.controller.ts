@@ -71,7 +71,7 @@ export const googleCallbackController = asyncHandler(
 
     const profile = await profileRes.json();
 
-    if (!profile.sub) {
+    if (!profile.sub || !profile.email) {
       return res.status(401).json({
         success: false,
         status: 401,
@@ -80,7 +80,7 @@ export const googleCallbackController = asyncHandler(
       });
     }
 
-    const existing = await prisma.federatedCredential.findUnique({
+    const existingCredential = await prisma.federatedCredential.findUnique({
       where: {
         provider_subject: {
           provider: GOOGLE_ISSUER,
@@ -92,25 +92,47 @@ export const googleCallbackController = asyncHandler(
 
     let user;
 
-    if (!existing) {
-      user = await prisma.user.create({
-        data: {
-          firstName: profile.given_name ?? null,
-          lastName: profile.family_name ?? null,
-          email: profile.email,
-          image: profile.picture ?? null,
-          emailVerified: true,
-          password: null,
-          federatedCredentials: {
-            create: {
-              provider: GOOGLE_ISSUER,
-              subject: profile.sub,
+    if (!existingCredential) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: profile.email },
+      });
+
+      if (existingUser) {
+        user = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            emailVerified: true,
+            image: existingUser.image ?? profile.picture ?? null,
+            firstName: existingUser.firstName ?? profile.given_name ?? null,
+            lastName: existingUser.lastName ?? profile.family_name ?? null,
+            federatedCredentials: {
+              create: {
+                provider: GOOGLE_ISSUER,
+                subject: profile.sub,
+              },
             },
           },
-        },
-      });
+        });
+      } else {
+        user = await prisma.user.create({
+          data: {
+            firstName: profile.given_name ?? null,
+            lastName: profile.family_name ?? null,
+            email: profile.email,
+            image: profile.picture ?? null,
+            emailVerified: true,
+            password: null,
+            federatedCredentials: {
+              create: {
+                provider: GOOGLE_ISSUER,
+                subject: profile.sub,
+              },
+            },
+          },
+        });
+      }
     } else {
-      user = existing.user;
+      user = existingCredential.user;
     }
 
     if (!user) {
