@@ -72,7 +72,7 @@ export const signUpController = asyncHandler(
         data: { email: user.email, invited: true, workspaceId },
       });
     } else {
-      const existingUser = await prisma.user.findUnique({
+      const existingUser = await prisma.user.findFirst({
         where: { email: validatedData.email },
       });
 
@@ -88,7 +88,7 @@ export const signUpController = asyncHandler(
           where: { email: validatedData.email },
           update: {
             password: hashedPassword,
-            verificationToken: verificationToken,
+            verificationToken: verificationToken.trim(),
             tokenExpiry: tokenExpiryDate,
           },
           create: {
@@ -231,7 +231,7 @@ export const emailVerificationController = asyncHandler(
       });
     }
 
-    if (user.verificationToken !== otp) {
+    if (user.verificationToken.trim() !== otp.trim()) {
       return res.status(400).json({
         success: false,
         status: 401,
