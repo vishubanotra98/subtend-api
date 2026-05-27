@@ -1,3 +1,5 @@
+import "./config/env.js";
+
 export default {
   schema: "prisma/schema.prisma",
   migrations: {

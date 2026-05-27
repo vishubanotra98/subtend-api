@@ -1,47 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
-import jwt from "jsonwebtoken";
-import {
-  ACCESS_TOKEN_SECRET,
-  REFRESH_TOKEN_SECRET,
-} from "../constants/constant.js";
+import { issueTokens } from "../helpers/cookie.helper.js";
 
 const GOOGLE_ISSUER = "https://accounts.google.com";
-
-const issueTokens = async (res: Response, userId: string, email: string) => {
-  const payload = { user_id: userId, email };
-
-  const access_token = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
-    expiresIn: "15m",
-  });
-  const refresh_token = jwt.sign(payload, REFRESH_TOKEN_SECRET, {
-    expiresIn: "30d",
-  });
-
-  await prisma.refreshToken.create({
-    data: {
-      token: refresh_token,
-      userId,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  res.cookie("refresh_token", refresh_token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/auth/refresh",
-    maxAge: 30 * 24 * 60 * 60 * 1000,
-  });
-
-  res.cookie("access_token", access_token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: 15 * 60 * 1000,
-  });
-};
 
 // step 1 - redirecting user to google
 export const googleLoginController = asyncHandler(

@@ -13,6 +13,7 @@ import {
   ACCESS_TOKEN_SECRET,
   REFRESH_TOKEN_SECRET,
 } from "../constants/constant.js";
+import { issueTokens } from "../helpers/cookie.helper.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -168,41 +169,7 @@ export const signInController = asyncHandler(
       });
     }
 
-    const payload = {
-      user_id: user?.id,
-      email: user?.email,
-    };
-    const refresh_token = jwt.sign(payload, REFRESH_TOKEN_SECRET, {
-      expiresIn: "30d",
-    });
-
-    const accessToken = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
-      expiresIn: "15m",
-    });
-
-    await prisma.refreshToken.create({
-      data: {
-        token: refresh_token,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    });
-
-    res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      maxAge: 15 * 60 * 1000,
-      path: "/",
-    });
-
-    res.cookie("refresh_token", refresh_token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? "none" : "lax",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
+    await issueTokens(res, user.id, user.email);
 
     return res?.status(200)?.json({
       success: true,
@@ -312,34 +279,7 @@ export const refresh = asyncHandler(
       });
     }
 
-    const payload = { user_id: userData.user_id, email: userData.email };
-
-    const new_refresh_token = jwt.sign(payload, REFRESH_TOKEN_SECRET, {
-      expiresIn: "30d",
-    });
-    const new_access_token = jwt.sign(payload, ACCESS_TOKEN_SECRET, {
-      expiresIn: "15m",
-    });
-
-    await prisma.refreshToken.update({
-      where: { id: tokenPresent.id },
-      data: { token: new_refresh_token },
-    });
-
-    res.cookie("refresh_token", new_refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/auth/refresh",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-
-    res.cookie("access_token", new_access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 15 * 60 * 1000,
-    });
+    await issueTokens(res, userData.user_id, userData.email);
 
     return res.status(200).json({
       success: true,
