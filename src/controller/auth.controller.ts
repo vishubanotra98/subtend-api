@@ -14,6 +14,8 @@ import {
   REFRESH_TOKEN_SECRET,
 } from "../constants/constant.js";
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const signUpController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { formData, token, isAdmin } = req.body;
@@ -186,19 +188,20 @@ export const signInController = asyncHandler(
       },
     });
 
-    res.cookie("refresh_token", refresh_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/auth/refresh",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
-
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 15 * 60 * 1000,
+      path: "/",
+    });
+
+    res.cookie("refresh_token", refresh_token, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      path: "/",
     });
 
     return res?.status(200)?.json({

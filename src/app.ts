@@ -52,6 +52,5 @@ app.use("/api/v1", workspaceRoutes);
 // issue routes
 app.use("/api/v1", issueRoutes);
 
-export default app;
-
 app.use(errorHandler);
+export default app;
