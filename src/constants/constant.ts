@@ -1,5 +1,8 @@
 export const PORT = process.env.PORT || 8080;
 export const BASE_URL_CLIENT = process.env.BASE_URL_CLIENT;
+export const ALLOWED_ORIGINS = [BASE_URL_CLIENT, "http://localhost:3000"]
+  .filter((origin): origin is string => Boolean(origin))
+  .map((origin) => origin.replace(/\/$/, ""));
 export const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET as string;
 export const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET as string;
 
