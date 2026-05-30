@@ -13,7 +13,7 @@ import {
   ACCESS_TOKEN_SECRET,
   REFRESH_TOKEN_SECRET,
 } from "../constants/constant.js";
-import { issueTokens } from "../helpers/cookie.helper.js";
+import { cookieOptions, issueTokens } from "../helpers/cookie.helper.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -289,3 +289,23 @@ export const refresh = asyncHandler(
     });
   },
 );
+
+export const logout = asyncHandler(async (req: Request, res: Response) => {
+  const refresh_token = req.cookies.refresh_token;
+
+  if (refresh_token) {
+    await prisma.refreshToken.deleteMany({
+      where: { token: refresh_token },
+    });
+  }
+
+  res.clearCookie("access_token", cookieOptions(0));
+  res.clearCookie("refresh_token", cookieOptions(0));
+
+  return res.status(200).json({
+    success: true,
+    status: 200,
+    code: "USER_LOGGED_OUT",
+    message: "User logged out successfully.",
+  });
+});

@@ -6,11 +6,14 @@ import {
   REFRESH_TOKEN_SECRET,
 } from "../constants/constant.js";
 
-const cookieOptions = (maxAge: number): CookieOptions => ({
+export const cookieOptions = (maxAge: number): CookieOptions => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
   sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-  domain: process.env.COOKIE_DOMAIN || undefined,
+  domain:
+    process.env.NODE_ENV === "production"
+      ? process.env.COOKIE_DOMAIN || undefined
+      : undefined,
   path: "/",
   maxAge,
 });
