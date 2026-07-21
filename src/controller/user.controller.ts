@@ -1,10 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
-import { DEFAULT_STATUSES } from "../constants/constant.js";
+import { EMAIL_JOBS } from "../constants/constant.js";
 import { v4 as uuid } from "uuid";
-import { resend } from "../lib/emailService.js";
-import UserInvitation from "../emails/templates/UserInvitation.js";
+import { emailQueue } from "../queue/email.queue.js";
 
 export const fetchUserController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -101,12 +100,8 @@ export const inviteUserController = asyncHandler(
       },
     });
 
-    await resend.emails.send({
-      from: "TaskFlow <onboarding@taskflow.vishubanotra.xyz>",
-      to: [email],
-      subject: "Join your team on Taskflow",
-      react: UserInvitation({ email, token, workspaceId, role }),
-    });
+    const data = { email, token, workspaceId, role };
+    await emailQueue.add(EMAIL_JOBS.INVITATION, data);
 
     return res.status(200).json({
       success: true,
@@ -120,9 +115,6 @@ export const inviteUserController = asyncHandler(
 export const verifyInviteMemberController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { email, token } = req.body;
-
-    console.log("EMAIL: ", email);
-    console.log("TOKEN: ", token);
 
     if (!token || !email) {
       return res.status(401).json({

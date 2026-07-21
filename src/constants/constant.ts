@@ -27,3 +27,8 @@ export const DEFAULT_STATUSES = [
     isDefault: false,
   },
 ];
+
+export const EMAIL_JOBS = {
+  VERIFICATION: "verificationEmail",
+  INVITATION: "invitationEmail",
+} as const;

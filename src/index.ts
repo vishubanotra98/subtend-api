@@ -1,4 +1,5 @@
 import "./config/env.js";
+import "./workers/email.worker.js";
 import { server } from "./app.js";
 import { io } from "./app.js";
 import { PORT } from "./constants/constant.js";
