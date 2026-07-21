@@ -5,15 +5,11 @@ import {
   passwordHash,
 } from "../helpers/passwordHashing.js";
 import { prisma } from "../lib/prisma.js";
-import { resend } from "../lib/emailService.js";
 import { signInSchema, userSchema } from "../lib/schema.js";
-import Email from "../emails/templates/VerificationEmail.js";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import {
-  ACCESS_TOKEN_SECRET,
-  REFRESH_TOKEN_SECRET,
-} from "../constants/constant.js";
+import { EMAIL_JOBS, REFRESH_TOKEN_SECRET } from "../constants/constant.js";
 import { cookieOptions, issueTokens } from "../helpers/cookie.helper.js";
+import { emailQueue } from "../queue/email.queue.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -104,16 +100,14 @@ export const signUpController = asyncHandler(
             verificationToken: verificationToken,
           },
         });
-        await resend.emails.send({
-          from: "TaskFlow <verification@taskflow.vishubanotra.xyz>",
-          to: [validatedData.email],
-          subject: "TaskFlow Verification OTP",
-          react: Email({
-            firstName: validatedData.firstName,
-            email: validatedData.email,
-            verificationToken: verificationToken,
-          }),
-        });
+
+        const data = {
+          firstName: validatedData.firstName,
+          email: validatedData.email,
+          verificationToken,
+        };
+
+        await emailQueue.add(EMAIL_JOBS.VERIFICATION, data);
 
         return res.status(200).json({
           success: true,
