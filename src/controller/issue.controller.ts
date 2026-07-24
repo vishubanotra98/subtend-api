@@ -235,6 +235,9 @@ export const deleteIssueController = asyncHandler(
     await prisma.issue.delete({
       where: { id: issueId },
     });
+    await prisma.activity.delete({
+      where: { id: issueId },
+    });
 
     activityLogger({
       action: "DELETED",

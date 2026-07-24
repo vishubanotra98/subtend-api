@@ -329,9 +329,11 @@ export const lastActiveWorkspaceController = asyncHandler(
   },
 );
 
-export const fetchStatusByWorkspaceController = asyncHandler(
+export const fetchStatusController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { workspaceId } = req.params;
+    const projectId = req.query.projectId as string;
+    let statusList = null;
 
     if (!workspaceId || typeof workspaceId !== "string") {
       return res.status(400).json({
@@ -355,14 +357,25 @@ export const fetchStatusByWorkspaceController = asyncHandler(
       });
     }
 
-    const statusList = await prisma.status.findMany({
-      where: { workspaceId },
-      include: {
-        _count: {
-          select: { issues: true },
+    if (!projectId) {
+      statusList = await prisma.status.findMany({
+        where: { workspaceId },
+        include: {
+          _count: {
+            select: { issues: true },
+          },
         },
-      },
-    });
+      });
+    } else {
+      statusList = await prisma.status.findMany({
+        where: { workspaceId },
+        include: {
+          _count: {
+            select: { issues: { where: { projectId } } },
+          },
+        },
+      });
+    }
 
     return res.status(200).json({
       success: true,
