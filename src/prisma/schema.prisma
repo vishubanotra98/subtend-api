@@ -100,12 +100,13 @@ model TeamMembers {
 }
 
 model Project {
-  id        String   @id @default(cuid())
-  name      String
-  team      Team     @relation(fields: [teamId], references: [id])
-  teamId    String
-  issues    Issue[]
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  name       String
+  team       Team     @relation(fields: [teamId], references: [id])
+  teamId     String
+  issues     Issue[]
+  createdAt  DateTime @default(now())
+  statusList Status[]
 }
 
 model Issue {
@@ -134,6 +135,8 @@ model Status {
 
   workspace   Workspace? @relation(fields: [workspaceId], references: [id])
   workspaceId String?
+  project     Project?   @relation(fields: [projectId], references: [id])
+  projectId   String?
 }
 
 model Invitation {

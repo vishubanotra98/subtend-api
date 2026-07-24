@@ -7,7 +7,7 @@ import {
   fetchTeamProjectController,
   fetchWorkspaceController,
   lastActiveWorkspaceController,
-  fetchStatusByWorkspaceController,
+  fetchStatusController,
   fetchActivityController,
   fetchWorkspaceMembers,
   getCompletedTasksCount,
@@ -26,11 +26,7 @@ router.post(
   lastActiveWorkspaceController,
 );
 router.post("/project", authMiddleware, createProjectController);
-router.get(
-  "/status/:workspaceId",
-  authMiddleware,
-  fetchStatusByWorkspaceController,
-);
+router.get("/status/:workspaceId", authMiddleware, fetchStatusController);
 router.get("/activities/:workspaceId", authMiddleware, fetchActivityController);
 router.get("/completed/count", authMiddleware, getCompletedTasksCount);
 
