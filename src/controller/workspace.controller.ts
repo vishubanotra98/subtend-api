@@ -433,21 +433,13 @@ export const getCompletedTasksCount = asyncHandler(
 
     const startDate = dayjs().subtract(6, "day").startOf("day").toDate();
 
-    const statusChangeActivities = await prisma.activity.findMany({
+    const completedTasks = await prisma.issue.findMany({
       where: {
-        workspaceId,
-        action: "STATUS_CHANGED",
-        afterState: {
-          path: ["newStatusId"],
-          equals: statusId,
-        },
-        created_at: {
-          gte: startDate,
-        },
+        project: { team: { workspaceId } },
+        statusId,
+        createdAt: { gte: startDate },
       },
-      select: {
-        created_at: true,
-      },
+      select: { createdAt: true },
     });
 
     const last7Days = Array.from({ length: 7 }).map((_, i) => {
@@ -459,8 +451,8 @@ export const getCompletedTasksCount = asyncHandler(
       };
     });
 
-    statusChangeActivities.forEach((activity) => {
-      const activityDate = dayjs(activity.created_at).format("YYYY-MM-DD");
+    completedTasks.forEach((activity) => {
+      const activityDate = dayjs(activity.createdAt).format("YYYY-MM-DD");
       const dayIndex = last7Days.findIndex((d) => d.date === activityDate);
       if (dayIndex !== -1) {
         last7Days[dayIndex].count += 1;
