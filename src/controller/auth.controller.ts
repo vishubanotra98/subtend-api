@@ -245,31 +245,21 @@ export const refresh = asyncHandler(
       });
     }
 
-    let userData: JwtPayload;
-    try {
-      userData = jwt.verify(refresh_token, REFRESH_TOKEN_SECRET) as JwtPayload;
-    } catch (err: any) {
-      return res.status(401).json({
-        success: false,
-        status: 401,
-        code:
-          err.name === "TokenExpiredError"
-            ? "REFRESH_TOKEN_EXPIRED"
-            : "INVALID_REFRESH_TOKEN",
-        message: "Please login to continue.",
-      });
-    }
+    const userData = jwt.verify(
+      refresh_token,
+      REFRESH_TOKEN_SECRET,
+    ) as JwtPayload;
 
     const tokenPresent = await prisma.refreshToken.findFirst({
       where: { token: refresh_token, userId: userData?.user_id },
     });
 
-    if (!tokenPresent) {
-      return res.status(401).json({
+    if (!tokenPresent || tokenPresent.token !== refresh_token) {
+      return res.status(410).json({
         success: false,
-        status: 401,
+        status: 410,
         code: "INVALID_REFRESH_TOKEN",
-        message: "Please login to continue.",
+        message: "Refresh token is no longer valid.",
       });
     }
 
