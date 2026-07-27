@@ -242,7 +242,6 @@ export const createTeamController = asyncHandler(
 export const createProjectController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.userId;
-    console.log(req.body);
     const { teamId, projectName } = req.body;
 
     if (!teamId || !projectName) {
