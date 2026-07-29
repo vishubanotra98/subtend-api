@@ -6,7 +6,7 @@ import {
   createWorkspaceController,
   fetchTeamProjectController,
   fetchWorkspaceController,
-  lastActiveWorkspaceController,
+  // lastActiveWorkspaceController,
   fetchStatusController,
   fetchActivityController,
   fetchWorkspaceMembers,
@@ -20,11 +20,11 @@ router.get("/workspaces/:workspaceId", authMiddleware, fetchWorkspaceMembers);
 router.post("/workspace", authMiddleware, createWorkspaceController);
 router.get("/team/:workspaceId", authMiddleware, fetchTeamProjectController);
 router.post("/team", authMiddleware, createTeamController);
-router.post(
-  "/last-active-workspace/:workspaceId",
-  authMiddleware,
-  lastActiveWorkspaceController,
-);
+// router.post(
+//   "/last-active-workspace/:workspaceId",
+//   authMiddleware,
+//   // lastActiveWorkspaceController,
+// );
 router.post("/project", authMiddleware, createProjectController);
 router.get("/status/:workspaceId", authMiddleware, fetchStatusController);
 router.get("/activities/:workspaceId", authMiddleware, fetchActivityController);

@@ -298,35 +298,35 @@ export const createProjectController = asyncHandler(
   },
 );
 
-export const lastActiveWorkspaceController = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    const userId = req.userId;
-    const workspaceId = req.params?.workspaceId as string;
+// export const lastActiveWorkspaceController = asyncHandler(
+//   async (req: Request, res: Response, next: NextFunction) => {
+//     const userId = req.userId;
+//     const workspaceId = req.params?.workspaceId as string;
 
-    if (!workspaceId) {
-      return res.status(400).json({
-        success: false,
-        status: 400,
-        code: "MISSING_FIELDS",
-        message: "workspaceId is required",
-      });
-    }
+//     if (!workspaceId) {
+//       return res.status(400).json({
+//         success: false,
+//         status: 400,
+//         code: "MISSING_FIELDS",
+//         message: "workspaceId is required",
+//       });
+//     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        lastActiveWorkspaceId: workspaceId,
-      },
-    });
+//     await prisma.user.update({
+//       where: { id: userId },
+//       data: {
+//         lastActiveWorkspaceId: workspaceId,
+//       },
+//     });
 
-    return res.status(200).json({
-      success: true,
-      status: 200,
-      code: "LAST_ACTIVE_WORKSPACE_UPDATED",
-      message: "Last active workspace updated successfully.",
-    });
-  },
-);
+//     return res.status(200).json({
+//       success: true,
+//       status: 200,
+//       code: "LAST_ACTIVE_WORKSPACE_UPDATED",
+//       message: "Last active workspace updated successfully.",
+//     });
+//   },
+// );
 
 export const fetchStatusController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
