@@ -26,12 +26,13 @@ export const emailInvitationService = async ({
   token,
   workspaceId,
   role,
+  exists,
 }) => {
   const emailRes = await resend.emails.send({
     from: "TaskFlow <onboarding@taskflow.vishubanotra.xyz>",
     to: [email],
     subject: "Join your team on Taskflow",
-    react: UserInvitation({ email, token, workspaceId, role }),
+    react: UserInvitation({ email, token, workspaceId, role, exists }),
   });
 
   return emailRes;

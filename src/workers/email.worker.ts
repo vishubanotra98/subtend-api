@@ -24,13 +24,14 @@ const emailWorker = new Worker(
       }
 
       case EMAIL_JOBS.INVITATION: {
-        const { email, token, workspaceId, role } = job.data;
+        const { email, token, workspaceId, role, exists } = job.data;
 
         await emailInvitationService({
           email,
           token,
           workspaceId,
           role,
+          exists,
         });
         break;
       }

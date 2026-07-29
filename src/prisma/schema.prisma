@@ -24,24 +24,23 @@ model RefreshToken {
 }
 
 model User {
-  id                    String                @id @default(cuid())
-  name                  String?
-  firstName             String?               @map("first_name")
-  lastName              String?               @map("last_name")
-  email                 String?               @unique
-  password              String?
-  emailVerified         Boolean?              @map("email_verified")
-  tokenExpiry           DateTime?
-  verificationToken     String?
-  refreshTokens         RefreshToken[]
-  image                 String?
-  workspaces            WorkspaceMembers[]
-  teams                 TeamMembers[]
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  assignedIssues        Issue[]               @relation("Assignee")
-  lastActiveWorkspaceId String?
-  federatedCredentials  FederatedCredential[]
+  id                   String                @id @default(cuid())
+  name                 String?
+  firstName            String?               @map("first_name")
+  lastName             String?               @map("last_name")
+  email                String?               @unique
+  password             String?
+  emailVerified        Boolean?              @map("email_verified")
+  tokenExpiry          DateTime?
+  verificationToken    String?
+  refreshTokens        RefreshToken[]
+  image                String?
+  workspaces           WorkspaceMembers[]
+  teams                TeamMembers[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  assignedIssues       Issue[]               @relation("Assignee")
+  federatedCredentials FederatedCredential[]
 
   @@map("users")
 }
@@ -65,6 +64,7 @@ model Workspace {
   statuses    Status[]
   createdAt   DateTime           @default(now())
   invitations Invitation[]
+  collabs     Collab[]
 }
 
 model WorkspaceMembers {
@@ -100,29 +100,51 @@ model TeamMembers {
 }
 
 model Project {
-  id         String   @id @default(cuid())
-  name       String
-  team       Team     @relation(fields: [teamId], references: [id])
-  teamId     String
-  issues     Issue[]
-  createdAt  DateTime @default(now())
-  statusList Status[]
+  id             String           @id @default(cuid())
+  name           String
+  team           Team             @relation(fields: [teamId], references: [id])
+  teamId         String
+  issues         Issue[]
+  createdAt      DateTime         @default(now())
+  statusList     Status[]
+  collabs        Collab[]
+  projectCollabs ProjectCollabs[]
 }
 
 model Issue {
-  id          String   @id @default(cuid())
-  title       String
-  ticket_num  Int      @default(autoincrement())
-  description String   @db.Text
-  priority    Priority @default(LOW)
-  status      Status   @relation(fields: [statusId], references: [id])
-  statusId    String
-  assignee    User     @relation(name: "Assignee", fields: [assigneeId], references: [id])
-  assigneeId  String
-  project     Project  @relation(fields: [projectId], references: [id])
-  projectId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  ticket_num    Int      @default(autoincrement())
+  description   String   @db.Text
+  priority      Priority @default(LOW)
+  blockedReason String?  @db.Text
+  status        Status   @relation(fields: [statusId], references: [id])
+  statusId      String
+  assignee      User     @relation(name: "Assignee", fields: [assigneeId], references: [id])
+  assigneeId    String
+  project       Project  @relation(fields: [projectId], references: [id])
+  projectId     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Collab {
+  id             String           @id @default(cuid())
+  name           String
+  project        Project[]
+  workspace      Workspace[]
+  projectCollabs ProjectCollabs[]
+}
+
+model ProjectCollabs {
+  id        String  @id @default(cuid())
+  collab    Collab  @relation(fields: [collabId], references: [id])
+  collabId  String
+  project   Project @relation(fields: [projectId], references: [id])
+  projectId String
+
+  @@unique([collabId, projectId])
+  @@map("project_collabs")
 }
 
 model Status {

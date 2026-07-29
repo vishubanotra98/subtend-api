@@ -66,18 +66,9 @@ export const inviteUserController = asyncHandler(
       });
     }
 
-    const isUserExists = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email },
     });
-
-    if (isUserExists) {
-      return res.status(400).json({
-        success: false,
-        status: 400,
-        code: "USER_ALREADY_EXISTS",
-        message: "User is already registered.",
-      });
-    }
 
     const token = uuid();
     const tokenExpiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -101,6 +92,7 @@ export const inviteUserController = asyncHandler(
     });
 
     const data = { email, token, workspaceId, role };
+    data["exists"] = existingUser ? true : false;
     await emailQueue.add(EMAIL_JOBS.INVITATION, data);
 
     return res.status(200).json({
@@ -127,6 +119,10 @@ export const verifyInviteMemberController = asyncHandler(
 
     const existingInvite = await prisma.invitation.findUnique({
       where: { token: token },
+    });
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
     });
 
     if (!existingInvite) {
@@ -157,11 +153,31 @@ export const verifyInviteMemberController = asyncHandler(
       });
     }
 
+    if (existingUser) {
+      await prisma.workspaceMembers.upsert({
+        where: {
+          userId_workspaceId: {
+            userId: existingUser.id,
+            workspaceId: existingInvite.workspaceId,
+          },
+        },
+        create: {
+          userId: existingUser.id,
+          workspaceId: existingInvite.workspaceId,
+          role: "MEMBER",
+        },
+        update: {},
+      });
+    }
+
     return res.status(200).json({
       success: true,
       status: 200,
       code: "MEMBER_VERIFIED",
       message: "Member verified successfully.",
+      data: {
+        exists: existingUser ? true : false,
+      },
     });
   },
 );

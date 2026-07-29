@@ -20,6 +20,7 @@ interface InviteProps {
   token: string;
   workspaceId: string;
   role: string;
+  exists: boolean;
 }
 
 export function UserInvitation({
@@ -27,8 +28,9 @@ export function UserInvitation({
   token,
   workspaceId,
   role,
+  exists,
 }: InviteProps) {
-  const inviteUrl = `${BASE_URL_CLIENT}/user-invite?utok=${token}&email=${email}&wid=${workspaceId}&role=${role}`;
+  const inviteUrl = `${BASE_URL_CLIENT}/user-invite?utok=${token}&email=${email}&wid=${workspaceId}&role=${role}&exists=${exists}`;
   const roleLabel = role
     ? role.charAt(0).toUpperCase() + role.slice(1).toLowerCase()
     : "Member";
