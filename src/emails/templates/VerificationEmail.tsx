@@ -1,83 +1,106 @@
 import * as React from "react";
 import {
   Html,
-  Body,
+  Head,
   Preview,
+  Body,
   Container,
+  Section,
   Text,
   Hr,
-  Head,
   Font,
-  Section,
-  Row,
-  Column,
 } from "@react-email/components";
 
-export function Email({ firstName, verificationToken, email }: any) {
+interface EmailProps {
+  firstName?: string;
+  verificationToken: string;
+  email?: string;
+}
+
+export function Email({ firstName, verificationToken, email }: EmailProps) {
   return (
     <Html lang="en">
       <Head>
         <Font
-          fontFamily="Geist Mono"
-          fallbackFontFamily="monospace"
+          fontFamily="Inter"
+          fallbackFontFamily="Arial"
           webFont={{
-            url: "https://fonts.gstatic.com/s/geistmono/v1/or3NQ7aH_IQn4Y4qsBRDiPMzHQ.woff2",
+            url: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTcviYwY.woff2",
             format: "woff2",
           }}
           fontWeight={400}
           fontStyle="normal"
         />
       </Head>
+
+      <Preview>
+        {firstName ? `${firstName}, ` : ""}
+        your Subtend verification code is ready.
+      </Preview>
+
       <Body style={body}>
-        <Preview>
-          {firstName ? `Hey ${firstName}, ` : ""}Your Taskflow verification code
-          is ready
-        </Preview>
-        <Container style={outer}>
+        <Container style={container}>
+          {/* Header */}
+
           <Section style={header}>
-            <Row>
-              <Column>
-                <Text style={logoMark}>⬡</Text>
-              </Column>
-              <Column align="right">
-                <Text style={logoText}>Taskflow</Text>
-              </Column>
-            </Row>
+            <Text style={logo}>Subtend</Text>
+
+            <Text style={headerCaption}>
+              Secure verification for your account
+            </Text>
           </Section>
+
+          {/* Card */}
+
           <Section style={card}>
-            <div style={accentLine} />
-
             <Section style={cardInner}>
-              <Text style={greeting}>
-                {firstName ? `Hey, ${firstName}.` : "Welcome back."}
+              <Text style={eyebrow}>ACCOUNT VERIFICATION</Text>
+
+              <Text style={heading}>
+                {firstName ? `Hi ${firstName},` : "Verify your account"}
               </Text>
 
-              <Text style={bodyText}>
-                Use the code below to verify your identity. It expires in{" "}
-                <span style={highlight}>15 minutes</span>.
+              <Text style={description}>
+                Use the verification code below to securely complete your sign
+                in. This code expires in <strong>15 minutes</strong>.
               </Text>
 
-              <Section style={codeWrapper}>
-                <Text style={codeLabel}>VERIFICATION CODE</Text>
-                <Text style={codeBlock}>{verificationToken}</Text>
-                <Text style={codeSubtext}>
-                  Do not share this code with anyone.
-                </Text>
+              {/* Verification Code */}
+
+              <Section style={codeCard}>
+                <Text style={codeLabel}>Verification code</Text>
+
+                <Text style={code}>{verificationToken}</Text>
+
+                <Text style={codeNote}>Never share this code with anyone.</Text>
               </Section>
 
               <Hr style={divider} />
 
               {email && (
-                <Text style={accountText}>
-                  Sent to <span style={emailHighlight}>{email}</span>
-                </Text>
+                <>
+                  <Text style={smallHeading}>Requested for</Text>
+
+                  <Text style={accountEmail}>{email}</Text>
+
+                  <Hr style={divider} />
+                </>
               )}
+
+              <Text style={smallHeading}>Didn't request this?</Text>
+
+              <Text style={smallText}>
+                If you didn't request this verification code, you can safely
+                ignore this email. Your account remains secure.
+              </Text>
             </Section>
           </Section>
 
+          {/* Footer */}
+
           <Section style={footer}>
-            <Text style={footerCopy}>
-              © {new Date().getFullYear()} Taskflow · Built for teams that ship
+            <Text style={footerText}>
+              © {new Date().getFullYear()} Subtend. All rights reserved.
             </Text>
           </Section>
         </Container>
@@ -89,138 +112,144 @@ export function Email({ firstName, verificationToken, email }: any) {
 export default Email;
 
 const body: React.CSSProperties = {
-  backgroundColor: "#0c0c0f",
-  fontFamily: "'Geist Mono', 'Courier New', monospace",
   margin: 0,
-  padding: "40px 0",
+  padding: "48px 0",
+  backgroundColor: "#f8fafc",
+  fontFamily:
+    "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
 };
 
-const outer: React.CSSProperties = {
-  maxWidth: "520px",
+const container: React.CSSProperties = {
+  maxWidth: "600px",
   margin: "0 auto",
-  padding: "0 16px",
+  padding: "0 24px",
 };
 
 const header: React.CSSProperties = {
-  padding: "0 0 24px 0",
+  textAlign: "center",
+  marginBottom: "32px",
 };
 
-const logoMark: React.CSSProperties = {
-  fontSize: "22px",
-  color: "#5b6af0",
+const logo: React.CSSProperties = {
   margin: 0,
-  lineHeight: 1,
-};
-
-const logoText: React.CSSProperties = {
-  fontSize: "13px",
+  color: "#0f172a",
+  fontSize: "28px",
   fontWeight: 700,
-  letterSpacing: "0.18em",
-  textTransform: "uppercase" as const,
-  color: "#5b5b72",
-  margin: 0,
+  letterSpacing: "-0.04em",
+};
+
+const headerCaption: React.CSSProperties = {
+  margin: "10px 0 0",
+  color: "#64748b",
+  fontSize: "14px",
   lineHeight: "22px",
 };
 
 const card: React.CSSProperties = {
-  backgroundColor: "#13131a",
-  borderRadius: "12px",
-  border: "1px solid #1f1f2e",
-  overflow: "hidden",
-};
-
-const accentLine: React.CSSProperties = {
-  height: "3px",
-  background: "linear-gradient(90deg, #5b6af0 0%, #8b5cf6 50%, #06b6d4 100%)",
+  backgroundColor: "#ffffff",
+  border: "1px solid #e2e8f0",
+  borderRadius: "18px",
 };
 
 const cardInner: React.CSSProperties = {
-  padding: "36px 40px 32px",
+  padding: "48px",
 };
 
-const greeting: React.CSSProperties = {
-  fontSize: "22px",
+const eyebrow: React.CSSProperties = {
+  margin: 0,
+  marginBottom: "18px",
+  color: "#0f766e",
+  fontSize: "12px",
   fontWeight: 700,
-  color: "#f0f0f8",
-  margin: "0 0 12px",
-  letterSpacing: "-0.02em",
+  letterSpacing: "0.12em",
+  textTransform: "uppercase",
 };
 
-const bodyText: React.CSSProperties = {
-  fontSize: "14px",
-  color: "#8888a8",
-  lineHeight: "1.6",
-  margin: "0 0 32px",
+const heading: React.CSSProperties = {
+  margin: 0,
+  color: "#0f172a",
+  fontSize: "34px",
+  fontWeight: 700,
+  lineHeight: "42px",
+  letterSpacing: "-0.03em",
 };
 
-const highlight: React.CSSProperties = {
-  color: "#a5b4fc",
-  fontWeight: 600,
+const description: React.CSSProperties = {
+  margin: "18px 0 36px",
+  color: "#475569",
+  fontSize: "16px",
+  lineHeight: "28px",
 };
 
-const codeWrapper: React.CSSProperties = {
-  backgroundColor: "#0c0c0f",
-  border: "1px solid #2a2a3e",
-  borderRadius: "8px",
-  padding: "24px 28px",
-  margin: "0 0 28px",
+const codeCard: React.CSSProperties = {
+  backgroundColor: "#f8fafc",
+  border: "1px solid #e2e8f0",
+  borderRadius: "14px",
+  padding: "28px",
+  textAlign: "center",
+  marginBottom: "36px",
 };
 
 const codeLabel: React.CSSProperties = {
-  fontSize: "10px",
-  fontWeight: 700,
-  letterSpacing: "0.2em",
-  color: "#5b6af0",
-  margin: "0 0 12px",
-  textTransform: "uppercase" as const,
-};
-
-const codeBlock: React.CSSProperties = {
-  fontSize: "32px",
-  fontWeight: 700,
-  color: "#f0f0f8",
-  letterSpacing: "0.25em",
-  margin: "0 0 10px",
-  lineHeight: 1.2,
-};
-
-const codeSubtext: React.CSSProperties = {
-  fontSize: "11px",
-  color: "#44445a",
   margin: 0,
-  letterSpacing: "0.04em",
+  color: "#64748b",
+  fontSize: "12px",
+  fontWeight: 700,
+  letterSpacing: "0.10em",
+  textTransform: "uppercase",
+};
+
+const code: React.CSSProperties = {
+  margin: "20px 0",
+  color: "#0f172a",
+  fontSize: "40px",
+  fontWeight: 700,
+  letterSpacing: "0.30em",
+  lineHeight: "48px",
+};
+
+const codeNote: React.CSSProperties = {
+  margin: 0,
+  color: "#64748b",
+  fontSize: "13px",
+  lineHeight: "22px",
 };
 
 const divider: React.CSSProperties = {
-  borderColor: "#1f1f2e",
-  margin: "0 0 24px",
+  borderColor: "#e2e8f0",
+  margin: "32px 0",
 };
 
-const footerText: React.CSSProperties = {
-  fontSize: "12px",
-  color: "#55556a",
-  lineHeight: "1.6",
-  margin: "0 0 12px",
-};
-
-const accountText: React.CSSProperties = {
-  fontSize: "12px",
-  color: "#44445a",
+const smallHeading: React.CSSProperties = {
   margin: 0,
+  color: "#0f172a",
+  fontSize: "15px",
+  fontWeight: 600,
 };
 
-const emailHighlight: React.CSSProperties = {
-  color: "#6366f1",
+const accountEmail: React.CSSProperties = {
+  margin: "10px 0 0",
+  color: "#0f766e",
+  fontSize: "15px",
+  fontWeight: 500,
+  lineHeight: "24px",
+};
+
+const smallText: React.CSSProperties = {
+  margin: "12px 0 0",
+  color: "#64748b",
+  fontSize: "14px",
+  lineHeight: "24px",
 };
 
 const footer: React.CSSProperties = {
-  padding: "20px 0 0",
-  textAlign: "center" as const,
+  textAlign: "center",
+  paddingTop: "28px",
 };
 
-const footerCopy: React.CSSProperties = {
-  fontSize: "11px",
-  color: "#333348",
-  letterSpacing: "0.06em",
+const footerText: React.CSSProperties = {
   margin: 0,
+  color: "#94a3b8",
+  fontSize: "13px",
+  lineHeight: "20px",
 };

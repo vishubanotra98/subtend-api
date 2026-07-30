@@ -26,7 +26,6 @@ export const fetchUserController = asyncHandler(
         firstName: true,
         lastName: true,
         image: true,
-        lastActiveWorkspaceId: true,
         createdAt: true,
         updatedAt: true,
       },

@@ -8,9 +8,9 @@ export const emailVerificationService = async ({
   verificationToken,
 }) => {
   const emailRes = await resend.emails.send({
-    from: "TaskFlow <verification@taskflow.vishubanotra.xyz>",
+    from: "Subtend <verification@subtend.vishubanotra.xyz>",
     to: [email],
-    subject: "TaskFlow Verification OTP",
+    subject: "Subtend Verification OTP",
     react: Email({
       firstName,
       email,
@@ -29,9 +29,9 @@ export const emailInvitationService = async ({
   exists,
 }) => {
   const emailRes = await resend.emails.send({
-    from: "TaskFlow <onboarding@taskflow.vishubanotra.xyz>",
+    from: "Subtend <onboarding@subtend.vishubanotra.xyz>",
     to: [email],
-    subject: "Join your team on Taskflow",
+    subject: "Join your team on Subtend",
     react: UserInvitation({ email, token, workspaceId, role, exists }),
   });
 
