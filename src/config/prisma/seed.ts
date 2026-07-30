@@ -24,7 +24,7 @@ async function main() {
 
   const workspace = await prisma.workspace.create({
     data: {
-      name: "TaskFlow Demo HQ",
+      name: "Subtend Demo HQ",
       members: {
         create: {
           userId: user.id,
