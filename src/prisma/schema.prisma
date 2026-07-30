@@ -105,10 +105,11 @@ model Project {
   team           Team             @relation(fields: [teamId], references: [id])
   teamId         String
   issues         Issue[]
-  createdAt      DateTime         @default(now())
   statusList     Status[]
-  collabs        Collab[]
   projectCollabs ProjectCollabs[]
+  createdAt      DateTime         @default(now())
+  collab         Collab?          @relation(fields: [collabId], references: [id])
+  collabId       String?
 }
 
 model Issue {
@@ -131,17 +132,21 @@ model Issue {
 model Collab {
   id             String           @id @default(cuid())
   name           String
-  project        Project[]
-  workspace      Workspace[]
+  workspaceId    String
+  workspace      Workspace        @relation(fields: [workspaceId], references: [id])
   projectCollabs ProjectCollabs[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  projects       Project[]
 }
 
 model ProjectCollabs {
-  id        String  @id @default(cuid())
-  collab    Collab  @relation(fields: [collabId], references: [id])
+  id        String   @id @default(cuid())
   collabId  String
-  project   Project @relation(fields: [projectId], references: [id])
   projectId String
+  collab    Collab   @relation(fields: [collabId], references: [id])
+  project   Project  @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
 
   @@unique([collabId, projectId])
   @@map("project_collabs")
