@@ -180,16 +180,15 @@ model Invitation {
 }
 
 model Activity {
-  id          String  @id @default(cuid())
+  id          String @id @default(cuid())
   action      String
-  entityTitle String
-  userId      String
   workspaceId String
-  teamId      String
-  projectId   String
-  issueId     String?
-  beforeState Json?   @map("before_state")
-  afterState  Json?   @map("after_state")
+  actor       Json?
+  team        Json?
+  project     Json?
+  issue       Json?
+  beforeState Json?  @map("before_state")
+  afterState  Json?  @map("after_state")
 
   created_at DateTime @default(now())
 }
