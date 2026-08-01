@@ -8,9 +8,7 @@ import {
   fetchWorkspaceController,
   // lastActiveWorkspaceController,
   fetchStatusController,
-  fetchActivityController,
   fetchWorkspaceMembers,
-  getCompletedTasksCount,
 } from "../controller/workspace.controller.js";
 
 const router = Router();
@@ -27,7 +25,5 @@ router.post("/team", authMiddleware, createTeamController);
 // );
 router.post("/project", authMiddleware, createProjectController);
 router.get("/status/:workspaceId", authMiddleware, fetchStatusController);
-router.get("/activities/:workspaceId", authMiddleware, fetchActivityController);
-router.get("/completed/count", authMiddleware, getCompletedTasksCount);
 
 export default router;
