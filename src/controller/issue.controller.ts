@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
 import { activityLogger } from "../utils/activityHandler.js";
+import { ActivityAction } from "../constants/constant.js";
 
 export const fetchIssuesController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -32,8 +33,9 @@ export const fetchIssuesController = asyncHandler(
 );
 
 export const createIssueController = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const currentUser = req.userId;
+
     const {
       title,
       description,
@@ -54,27 +56,88 @@ export const createIssueController = asyncHandler(
       });
     }
 
-    const createIssue = await prisma.issue.create({
+    const assigneeId = userId ?? currentUser;
+
+    const [actor, assignee, team, project, statusData] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: currentUser },
+      }),
+
+      prisma.user.findUnique({
+        where: { id: assigneeId },
+      }),
+
+      prisma.team.findUnique({
+        where: { id: teamId },
+      }),
+
+      prisma.project.findUnique({
+        where: { id: projectId },
+      }),
+
+      prisma.status.findUnique({
+        where: { id: status },
+      }),
+    ]);
+
+    if (!project || !team || !statusData || !actor) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "RESOURCE_NOT_FOUND",
+        message: "One or more referenced resources could not be found.",
+      });
+    }
+
+    const issue = await prisma.issue.create({
       data: {
         title,
         description,
         priority,
         statusId: status,
-        assigneeId: !userId ? currentUser : userId,
+        assigneeId,
         projectId,
       },
     });
 
     const loggerData = {
-      action: "CREATED",
-      entityTitle: title,
-      userId: currentUser,
+      action: ActivityAction.CREATED,
       workspaceId,
-      teamId,
-      projectId,
-      issueId: createIssue?.id,
+      actor: {
+        id: actor.id,
+        name:
+          actor.name ??
+          `${actor.firstName ?? ""} ${actor.lastName ?? ""}`.trim(),
+        image: actor.image,
+      },
+      team: {
+        id: team.id,
+        name: team.name,
+      },
+      project: {
+        id: project.id,
+        name: project.name,
+      },
+      issue: {
+        id: issue.id,
+        title: issue.title,
+      },
       beforeState: null,
-      afterState: null,
+      afterState: {
+        status: {
+          id: statusData.id,
+          name: statusData.name,
+          color: statusData.color,
+        },
+        assignee: {
+          id: assignee?.id,
+          name:
+            assignee?.name ??
+            `${assignee?.firstName ?? ""} ${assignee?.lastName ?? ""}`.trim(),
+          image: assignee?.image,
+        },
+        priority,
+      },
     };
 
     activityLogger(loggerData).catch((err) =>
@@ -86,13 +149,17 @@ export const createIssueController = asyncHandler(
       status: 201,
       code: "ISSUE_CREATED",
       message: "Issue created successfully.",
-      data: { issue: createIssue },
+      data: {
+        issue,
+      },
     });
   },
 );
 
 export const editIssueController = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
+    const currentUser = req.userId;
+
     const {
       workspaceId,
       teamId,
@@ -104,19 +171,20 @@ export const editIssueController = asyncHandler(
       priority,
       statusId,
     } = req.body;
-    const currentUser = req.userId;
 
     if (!issueId || !workspaceId || !teamId || !projectId) {
       return res.status(400).json({
         success: false,
         status: 400,
         code: "MISSING_FIELDS",
-        message: "issueId, workspaceId, teamId and projectId are required",
+        message: "issueId, workspaceId, teamId and projectId are required.",
       });
     }
 
-    const oldIssue = await prisma.issue.findFirst({
-      where: { id: issueId },
+    const oldIssue = await prisma.issue.findUnique({
+      where: {
+        id: issueId,
+      },
     });
 
     if (!oldIssue) {
@@ -128,8 +196,10 @@ export const editIssueController = asyncHandler(
       });
     }
 
-    const editIssue = await prisma.issue.update({
-      where: { id: issueId },
+    const updatedIssue = await prisma.issue.update({
+      where: {
+        id: issueId,
+      },
       data: {
         title,
         description,
@@ -140,87 +210,232 @@ export const editIssueController = asyncHandler(
       },
     });
 
-    const baseData = {
-      userId: currentUser,
-      workspaceId,
-      teamId,
-      projectId,
-      issueId,
+    const [
+      actor,
+      team,
+      project,
+      previousStatus,
+      currentStatus,
+      previousAssignee,
+      currentAssignee,
+    ] = await Promise.all([
+      prisma.user.findUnique({
+        where: {
+          id: currentUser,
+        },
+      }),
+
+      prisma.team.findUnique({
+        where: {
+          id: teamId,
+        },
+      }),
+
+      prisma.project.findUnique({
+        where: {
+          id: projectId,
+        },
+      }),
+
+      oldIssue.statusId
+        ? prisma.status.findUnique({
+            where: {
+              id: oldIssue.statusId,
+            },
+          })
+        : Promise.resolve(null),
+
+      statusId
+        ? prisma.status.findUnique({
+            where: {
+              id: statusId,
+            },
+          })
+        : Promise.resolve(null),
+
+      oldIssue.assigneeId
+        ? prisma.user.findUnique({
+            where: {
+              id: oldIssue.assigneeId,
+            },
+          })
+        : Promise.resolve(null),
+
+      assigneeId
+        ? prisma.user.findUnique({
+            where: {
+              id: assigneeId,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const actorData = {
+      id: actor?.id,
+      name:
+        actor?.name ??
+        `${actor?.firstName ?? ""} ${actor?.lastName ?? ""}`.trim(),
+      image: actor?.image,
     };
 
-    const activityList = [];
+    const baseActivity = {
+      workspaceId,
+
+      actor: actorData,
+
+      team: {
+        id: team?.id,
+        name: team?.name,
+      },
+
+      project: {
+        id: project?.id,
+        name: project?.name,
+      },
+
+      issue: {
+        id: updatedIssue.id,
+        title: updatedIssue.title,
+      },
+    };
+
+    const activities = [];
 
     if (
-      oldIssue?.title !== editIssue?.title ||
-      oldIssue?.description !== editIssue?.description
+      oldIssue.title !== updatedIssue.title ||
+      oldIssue.description !== updatedIssue.description
     ) {
-      const activity = await activityLogger({
-        ...baseData,
-        action: "DETAILS_UPDATED",
-        entityTitle: title,
-      });
-      activityList.push(activity);
+      activities.push(
+        activityLogger({
+          ...baseActivity,
+
+          action: ActivityAction.DETAILS_UPDATED,
+
+          beforeState: {
+            title: oldIssue.title,
+            description: oldIssue.description,
+          },
+
+          afterState: {
+            title: updatedIssue.title,
+            description: updatedIssue.description,
+          },
+        }),
+      );
     }
 
-    if (oldIssue?.priority !== editIssue?.priority) {
-      const activity = await activityLogger({
-        ...baseData,
-        action: "PRIORITY_CHANGED",
-        entityTitle: editIssue?.title,
-        beforeState: { prev_priority: oldIssue?.priority },
-        afterState: { new_priority: priority },
-      });
-      activityList.push(activity);
+    if (oldIssue.priority !== updatedIssue.priority) {
+      activities.push(
+        activityLogger({
+          ...baseActivity,
+
+          action: ActivityAction.PRIORITY_CHANGED,
+
+          beforeState: {
+            priority: oldIssue.priority,
+          },
+
+          afterState: {
+            priority: updatedIssue.priority,
+          },
+        }),
+      );
     }
 
-    if (oldIssue?.assigneeId !== editIssue?.assigneeId) {
-      const activity = await activityLogger({
-        ...baseData,
-        action: "ASSIGNED",
-        entityTitle: editIssue?.title,
-        beforeState: { prev_assignee: oldIssue?.assigneeId },
-        afterState: { new_assignee: editIssue?.assigneeId },
-      });
-      activityList.push(activity);
+    if (oldIssue.assigneeId !== updatedIssue.assigneeId) {
+      activities.push(
+        activityLogger({
+          ...baseActivity,
+
+          action: ActivityAction.ASSIGNED,
+
+          beforeState: {
+            assignee: previousAssignee && {
+              id: previousAssignee.id,
+              name:
+                previousAssignee.name ??
+                `${previousAssignee.firstName ?? ""} ${previousAssignee.lastName ?? ""}`.trim(),
+              image: previousAssignee.image,
+            },
+          },
+
+          afterState: {
+            assignee: currentAssignee && {
+              id: currentAssignee.id,
+              name:
+                currentAssignee.name ??
+                `${currentAssignee.firstName ?? ""} ${currentAssignee.lastName ?? ""}`.trim(),
+              image: currentAssignee.image,
+            },
+          },
+        }),
+      );
     }
 
-    if (oldIssue?.statusId !== editIssue?.statusId) {
-      const activity = await activityLogger({
-        ...baseData,
-        action: "STATUS_CHANGED",
-        entityTitle: editIssue?.title,
-        beforeState: { previousStatusId: oldIssue?.statusId },
-        afterState: { newStatusId: editIssue?.statusId },
-      });
-      activityList.push(activity);
+    if (oldIssue.statusId !== updatedIssue.statusId) {
+      activities.push(
+        activityLogger({
+          ...baseActivity,
+
+          action: ActivityAction.STATUS_CHANGED,
+
+          beforeState: {
+            status: previousStatus && {
+              id: previousStatus.id,
+              name: previousStatus.name,
+              color: previousStatus.color,
+            },
+          },
+
+          afterState: {
+            status: currentStatus && {
+              id: currentStatus.id,
+              name: currentStatus.name,
+              color: currentStatus.color,
+            },
+          },
+        }),
+      );
     }
+
+    const activityLogs = await Promise.all(activities);
 
     return res.status(200).json({
       success: true,
       status: 200,
       code: "ISSUE_UPDATED",
       message: "Issue updated successfully.",
-      data: { issue: editIssue, activities: activityList },
+      data: {
+        issue: updatedIssue,
+        activities: activityLogs,
+      },
     });
   },
 );
 
 export const deleteIssueController = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const { workspaceId, issueId, projectId, teamId } = req.query;
     const currentUser = req.userId;
 
-    if (typeof issueId !== "string" || !workspaceId || !teamId || !projectId) {
+    if (
+      typeof issueId !== "string" ||
+      typeof workspaceId !== "string" ||
+      typeof projectId !== "string" ||
+      typeof teamId !== "string"
+    ) {
       return res.status(400).json({
         success: false,
         status: 400,
         code: "MISSING_FIELDS",
-        message: "issueId, workspaceId, teamId and projectId are required",
+        message: "issueId, workspaceId, teamId and projectId are required.",
       });
     }
 
-    const issue = await prisma.issue.findFirst({
-      where: { id: issueId },
+    const issue = await prisma.issue.findUnique({
+      where: {
+        id: issueId,
+      },
     });
 
     if (!issue) {
@@ -232,21 +447,91 @@ export const deleteIssueController = asyncHandler(
       });
     }
 
+    const [actor, team, project, status, assignee] = await Promise.all([
+      prisma.user.findUnique({
+        where: {
+          id: currentUser,
+        },
+      }),
+
+      prisma.team.findUnique({
+        where: {
+          id: teamId,
+        },
+      }),
+
+      prisma.project.findUnique({
+        where: {
+          id: projectId,
+        },
+      }),
+
+      issue.statusId
+        ? prisma.status.findUnique({
+            where: {
+              id: issue.statusId,
+            },
+          })
+        : Promise.resolve(null),
+
+      issue.assigneeId
+        ? prisma.user.findUnique({
+            where: {
+              id: issue.assigneeId,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
     await prisma.issue.delete({
-      where: { id: issueId },
+      where: {
+        id: issueId,
+      },
     });
 
-    activityLogger({
-      action: "DELETED",
-      entityTitle: issue?.title,
-      userId: currentUser,
+    const loggerData = {
+      action: ActivityAction.DELETED,
       workspaceId,
-      teamId,
-      projectId,
-      issueId,
-      beforeState: null,
+      actor: {
+        id: actor?.id,
+        name:
+          actor?.name ??
+          `${actor?.firstName ?? ""} ${actor?.lastName ?? ""}`.trim(),
+        image: actor?.image,
+      },
+      team: {
+        id: team?.id,
+        name: team?.name,
+      },
+      project: {
+        id: project?.id,
+        name: project?.name,
+      },
+      issue: {
+        id: issue.id,
+        title: issue.title,
+      },
+      beforeState: {
+        status: status && {
+          id: status.id,
+          name: status.name,
+          color: status.color,
+        },
+        assignee: assignee && {
+          id: assignee.id,
+          name:
+            assignee.name ??
+            `${assignee.firstName ?? ""} ${assignee.lastName ?? ""}`.trim(),
+          image: assignee.image,
+        },
+        priority: issue.priority,
+      },
       afterState: null,
-    }).catch((err) => console.error("Activity log failed:", err));
+    };
+
+    activityLogger(loggerData).catch((err) =>
+      console.error("Activity log failed:", err),
+    );
 
     return res.status(200).json({
       success: true,
@@ -285,7 +570,7 @@ export const fetchIssueByProjectController = asyncHandler(
 );
 
 export const moveCardController = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response) => {
     const { sourceId, targetId, workspaceId, teamId } = req.body;
 
     if (!sourceId || !targetId || !workspaceId || !teamId) {
@@ -293,49 +578,124 @@ export const moveCardController = asyncHandler(
         success: false,
         status: 400,
         code: "MISSING_FIELDS",
-        message: "Project id is required",
+        message: "sourceId, targetId, workspaceId and teamId are required.",
       });
     }
 
     const currentUser = req.userId;
 
-    const fetchCard = await prisma.issue.findFirst({
-      where: { id: sourceId },
+    const issue = await prisma.issue.findUnique({
+      where: {
+        id: sourceId,
+      },
     });
 
-    const previousStatus = fetchCard?.statusId;
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "ISSUE_NOT_FOUND",
+        message: "Issue not found.",
+      });
+    }
 
-    const card = await prisma.issue.update({
-      where: { id: sourceId },
+    const previousStatusId = issue.statusId;
+
+    const updatedIssue = await prisma.issue.update({
+      where: {
+        id: sourceId,
+      },
       data: {
         statusId: targetId,
       },
     });
 
-    const projectId = card.projectId;
+    const [actor, team, project, previousStatus, currentStatus] =
+      await Promise.all([
+        prisma.user.findUnique({
+          where: {
+            id: currentUser,
+          },
+        }),
+
+        prisma.team.findUnique({
+          where: {
+            id: teamId,
+          },
+        }),
+
+        prisma.project.findUnique({
+          where: {
+            id: updatedIssue.projectId,
+          },
+        }),
+
+        prisma.status.findUnique({
+          where: {
+            id: previousStatusId,
+          },
+        }),
+
+        prisma.status.findUnique({
+          where: {
+            id: targetId,
+          },
+        }),
+      ]);
 
     const loggerData = {
-      action: "STATUS_CHANGED",
-      entityTitle: card.title,
-      userId: currentUser,
-      workspaceId: workspaceId,
-      teamId: teamId,
-      projectId: projectId,
-      issueId: card?.id,
-      beforeState: {
-        previousStatusId: previousStatus,
+      action: ActivityAction.STATUS_CHANGED,
+
+      workspaceId,
+
+      actor: {
+        id: actor?.id,
+        name:
+          actor?.name ??
+          `${actor?.firstName ?? ""} ${actor?.lastName ?? ""}`.trim(),
+        image: actor?.image,
       },
+
+      team: {
+        id: team?.id,
+        name: team?.name,
+      },
+
+      project: {
+        id: project?.id,
+        name: project?.name,
+      },
+
+      issue: {
+        id: updatedIssue.id,
+        title: updatedIssue.title,
+      },
+
+      beforeState: {
+        status: previousStatus && {
+          id: previousStatus.id,
+          name: previousStatus.name,
+          color: previousStatus.color,
+        },
+      },
+
       afterState: {
-        newStatusId: card.statusId,
+        status: currentStatus && {
+          id: currentStatus.id,
+          name: currentStatus.name,
+          color: currentStatus.color,
+        },
       },
     };
 
-    await activityLogger(loggerData);
+    activityLogger(loggerData).catch((err) =>
+      console.error("Activity log failed:", err),
+    );
 
     return res.status(200).json({
       success: true,
       status: 200,
-      code: "ISSUES_MOVED",
+      code: "ISSUE_MOVED",
       message: "Issue moved successfully.",
     });
   },
