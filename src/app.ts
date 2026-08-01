@@ -13,6 +13,7 @@ import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import workspaceRoutes from "./routes/workspace.route.js";
 import issueRoutes from "./routes/issue.route.js";
+import dashboardRoutes from "./routes/dashboard.route.js";
 
 const app = express();
 
@@ -52,6 +53,9 @@ app.use("/api/v1", workspaceRoutes);
 
 // issue routes
 app.use("/api/v1", issueRoutes);
+
+// dashboard routes
+app.use("/api/v1", dashboardRoutes);
 
 app.use(errorHandler);
 export default app;

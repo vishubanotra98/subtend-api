@@ -26,6 +26,12 @@ export const DEFAULT_STATUSES = [
     order: 4,
     isDefault: false,
   },
+  {
+    name: "Blocked",
+    color: "#f59e0b",
+    order: 5,
+    isDefault: false,
+  },
 ];
 
 export const EMAIL_JOBS = {
