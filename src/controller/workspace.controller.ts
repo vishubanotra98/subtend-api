@@ -242,7 +242,7 @@ export const createTeamController = asyncHandler(
 export const createProjectController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.userId;
-    const { teamId, projectName } = req.body;
+    const { teamId, projectName, projectOverview, targetDate } = req.body;
 
     if (!teamId || !projectName) {
       return res.status(400).json({
@@ -387,4 +387,3 @@ export const fetchStatusController = asyncHandler(
     });
   },
 );
-
