@@ -82,6 +82,18 @@ export const getCompletedTasksCount = asyncHandler(
   },
 );
 
+/*
+---- Attention
+1. Blocked -> by which issue, assigned to whom
+2. Due date
+        - past the Due Date
+        - Due Today
+3. Unassigned but urgent
+4. No updates from 7+ days
+*/
+
 export const dashboardAttentionController = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {},
+  async (req: Request, res: Response, next: NextFunction) => {
+    
+  },
 );

@@ -45,14 +45,25 @@ export const createIssueController = asyncHandler(
       projectId,
       workspaceId,
       teamId,
+      targetDate,
+      blockedReason,
+      blockedAt,
     } = req.body;
 
-    if (!title || !status || !projectId || !workspaceId || !teamId) {
+    const requiredFields = [
+      { value: title, name: "Title" },
+      { value: workspaceId, name: "Workspace" },
+      { value: teamId, name: "Team" },
+    ];
+
+    const missingField = requiredFields.find((field) => !field.value);
+
+    if (!title || !workspaceId || !teamId) {
       return res.status(400).json({
         success: false,
         status: 400,
         code: "MISSING_FIELDS",
-        message: "All fields are required",
+        message: `${missingField?.name} is required`,
       });
     }
 
@@ -97,6 +108,9 @@ export const createIssueController = asyncHandler(
         statusId: status,
         assigneeId,
         projectId,
+        blockedReason,
+        targetDate,
+        blockedAt,
       },
     });
 
@@ -121,6 +135,9 @@ export const createIssueController = asyncHandler(
       issue: {
         id: issue.id,
         title: issue.title,
+        targetDate: issue.targetDate,
+        blockedReason: issue.blockedReason,
+        blockedAt: issue.blockedAt,
       },
       beforeState: null,
       afterState: {

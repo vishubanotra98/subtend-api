@@ -119,16 +119,16 @@ model Issue {
   id            String    @id @default(cuid())
   title         String
   ticket_num    Int       @default(autoincrement())
-  description   String    @db.Text
-  priority      Priority  @default(LOW)
+  description   String?   @db.Text
+  priority      Priority? @default(LOW)
   blockedReason String?   @db.Text
   blockedAt     DateTime? @map("blocked_at")
-  status        Status    @relation(fields: [statusId], references: [id])
-  statusId      String
+  status        Status?   @relation(fields: [statusId], references: [id])
+  statusId      String?
   assignee      User?     @relation(name: "Assignee", fields: [assigneeId], references: [id])
   assigneeId    String?
-  project       Project   @relation(fields: [projectId], references: [id])
-  projectId     String
+  project       Project?  @relation(fields: [projectId], references: [id])
+  projectId     String?
   targetDate    DateTime? @map("target_date")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
