@@ -298,6 +298,45 @@ export const createProjectController = asyncHandler(
   },
 );
 
+export const fetchProjectByIdController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { projectId } = req.params;
+
+    if (typeof projectId !== "string" || !projectId) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "PROJECT_ID MISSING",
+        message: "Project id is missing.",
+      });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      include: {
+        team: true,
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "PROJECT NOT FOUND",
+        message: "Project with this project id does not exist.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: 201,
+      code: "PROJECT_FETCHED",
+      message: "Project fetched successfully.",
+      data: { project },
+    });
+  },
+);
+
 // export const lastActiveWorkspaceController = asyncHandler(
 //   async (req: Request, res: Response, next: NextFunction) => {
 //     const userId = req.userId;
