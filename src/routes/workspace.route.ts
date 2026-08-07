@@ -9,6 +9,7 @@ import {
   // lastActiveWorkspaceController,
   fetchStatusController,
   fetchWorkspaceMembers,
+  fetchProjectByIdController,
 } from "../controller/workspace.controller.js";
 
 const router = Router();
@@ -24,6 +25,7 @@ router.post("/team", authMiddleware, createTeamController);
 //   // lastActiveWorkspaceController,
 // );
 router.post("/project", authMiddleware, createProjectController);
+router.get("/project/:projectId", authMiddleware, fetchProjectByIdController);
 router.get("/status/:workspaceId", authMiddleware, fetchStatusController);
 
 export default router;
