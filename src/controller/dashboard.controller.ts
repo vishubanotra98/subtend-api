@@ -2,31 +2,80 @@ import { NextFunction, Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
 import dayjs from "dayjs";
+import { attentionCalculation } from "../helpers/attention.helper.js";
 
-export const fetchActivityController = asyncHandler(
+export const dashboardAttentionController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const workspaceId = req.params.workspaceId as string;
+    const { workspaceId } = req.params;
 
-    if (!workspaceId) {
+    if (typeof workspaceId !== "string" || !workspaceId) {
       return res.status(400).json({
         success: false,
         status: 400,
-        code: "MISSING_FIELDS",
-        message: "workspaceId is required",
+        code: "INVALID_WORKSPACE_ID",
+        message: "Invalid Workspace id.",
       });
     }
 
-    const activities = await prisma.activity.findMany({
-      where: { workspaceId },
-      orderBy: { created_at: "desc" },
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: {
+        statuses: true,
+      },
+    });
+
+    if (!workspace) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "WORKSPACE_NOT_FOUND",
+        message: "Workspace with this does not exist.",
+      });
+    }
+
+    const statusList = workspace?.statuses;
+
+    const issues = await prisma.issue.findMany({
+      where: {
+        project: { team: { workspace: { id: workspaceId } } },
+      },
+      select: {
+        id: true,
+        title: true,
+        statusId: true,
+        priority: true,
+        targetDate: true,
+        updatedAt: true,
+        blockedAt: true,
+        assigneeId: true,
+
+        project: {
+          select: {
+            id: true,
+            name: true,
+
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const attentionIssues = attentionCalculation({
+      issues,
+      statusList,
     });
 
     return res.status(200).json({
       success: true,
       status: 200,
-      code: "ACTIVITIES_FETCHED",
-      message: "Activities fetched successfully.",
-      data: { activities },
+      code: "ATTENTION_FETCHED",
+      message: "Attention Issues fetched successfully.",
+      data: { attentionIssues },
     });
   },
 );
@@ -82,18 +131,30 @@ export const getCompletedTasksCount = asyncHandler(
   },
 );
 
-/*
----- Attention
-1. Blocked -> by which issue, assigned to whom
-2. Due date
-        - past the Due Date
-        - Due Today
-3. Unassigned but urgent
-4. No updates from 7+ days
-*/
-
-export const dashboardAttentionController = asyncHandler(
+export const fetchActivityController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    
+    const workspaceId = req.params.workspaceId as string;
+
+    if (!workspaceId) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "MISSING_FIELDS",
+        message: "workspaceId is required",
+      });
+    }
+
+    const activities = await prisma.activity.findMany({
+      where: { workspaceId },
+      orderBy: { created_at: "desc" },
+    });
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "ACTIVITIES_FETCHED",
+      message: "Activities fetched successfully.",
+      data: { activities },
+    });
   },
 );
