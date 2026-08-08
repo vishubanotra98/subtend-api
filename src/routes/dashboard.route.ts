@@ -9,6 +9,10 @@ const router = Router();
 
 router.get("/activities/:workspaceId", authMiddleware, fetchActivityController);
 router.get("/completed/count", authMiddleware, getCompletedTasksCount);
-router.get("/attention", authMiddleware, dashboardAttentionController);
+router.get(
+  "/attention/:workspaceId",
+  authMiddleware,
+  dashboardAttentionController,
+);
 
 export default router;

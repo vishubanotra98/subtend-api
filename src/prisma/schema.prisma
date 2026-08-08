@@ -163,11 +163,12 @@ model Status {
   color String
   order Int    @default(0)
 
-  isBlocked   Boolean @default(false)
-  isCompleted Boolean @default(false)
-  isDefault   Boolean @default(false)
-  isInitial   Boolean @default(false)
-  issues      Issue[]
+  isBlocked    Boolean @default(false)
+  isCompleted  Boolean @default(false)
+  isDefault    Boolean @default(false)
+  isInitial    Boolean @default(false)
+  isInProgress Boolean @default(false)
+  issues       Issue[]
 
   workspace   Workspace? @relation(fields: [workspaceId], references: [id])
   workspaceId String?
