@@ -29,10 +29,10 @@ export const attentionCalculation = (issueData: any) => {
 
     if (issue?.priority === "URGENT") {
       score += 30;
-      attentionReason.urgent = true;
+      attentionReason.priority = "URGENT";
     } else if (issue?.priority === "HIGH") {
       score += 15;
-      attentionReason.high = true;
+      attentionReason.priority = "HIGH";
     }
 
     if (issue?.targetDate) {
@@ -41,13 +41,13 @@ export const attentionCalculation = (issueData: any) => {
 
       if (overdueMs > SEVEN_DAYS) {
         score += 30;
-        attentionReason.overdue = "7 days";
+        attentionReason.checkDue = { overdue: "OVERDUE", by: "7 days" };
       } else if (overdueMs > THREE_DAYS) {
         score += 20;
-        attentionReason.overdue = "3 days";
+        attentionReason.checkDue = { overdue: "OVERDUE", by: "3 days" };
       } else if (overdueMs > ONE_DAY) {
         score += 10;
-        attentionReason.overdue = "1 day";
+        attentionReason.checkDue = { overdue: "OVERDUE", by: "1 day" };
       }
     }
 
@@ -57,13 +57,13 @@ export const attentionCalculation = (issueData: any) => {
 
       if (staleMs > THREE_DAYS) {
         score += 10;
-        attentionReason.stale = "3 days";
+        attentionReason.checkStale = { stale: "STALE", by: "3 days" };
       }
     }
 
     if (!issue?.assigneeId) {
       score += 10;
-      attentionReason.unassigned = true;
+      attentionReason.unassigned = "UNASSIGNED";
     }
 
     return {
@@ -80,7 +80,7 @@ export const attentionCalculation = (issueData: any) => {
         issue,
         score,
         attentionReason: {
-          blocked: true,
+          status: "BLOCKED",
           ...attentionReason,
         },
       });

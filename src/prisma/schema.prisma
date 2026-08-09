@@ -168,6 +168,8 @@ model Status {
   isDefault    Boolean @default(false)
   isInitial    Boolean @default(false)
   isInProgress Boolean @default(false)
+  isCancelled  Boolean @default(false)
+  isInReview   Boolean @default(false)
   issues       Issue[]
 
   workspace   Workspace? @relation(fields: [workspaceId], references: [id])
