@@ -21,6 +21,7 @@ export const dashboardAttentionController = asyncHandler(
       where: { id: workspaceId },
       include: {
         statuses: true,
+        members: true,
       },
     });
 
@@ -48,6 +49,15 @@ export const dashboardAttentionController = asyncHandler(
         updatedAt: true,
         blockedAt: true,
         assigneeId: true,
+
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
 
         project: {
           select: {
@@ -155,6 +165,106 @@ export const fetchActivityController = asyncHandler(
       code: "ACTIVITIES_FETCHED",
       message: "Activities fetched successfully.",
       data: { activities },
+    });
+  },
+);
+
+export const dashboardCountController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const workspaceId = req.params.workspaceId as string;
+
+    if (!workspaceId) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "MISSING_FIELDS",
+        message: "workspaceId is required",
+      });
+    }
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      include: {
+        statuses: true,
+      },
+    });
+
+    if (!workspace) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "WORKSPACE_NOT_FOUND",
+        message: "Workspace with this does not exist.",
+      });
+    }
+
+    const statusList = workspace.statuses;
+    const isBlockedId = statusList.find((st) => st.isBlocked);
+    const isInProgressId = statusList.find((st) => st.isInProgress);
+    const isInitialId = statusList.find((st) => st.isInitial);
+    const isCompletedId = statusList.find((st) => st.isCompleted);
+    const isCancelledId = statusList.find((st) => st.isCancelled);
+    const isInReviewId = statusList.find((st) => st.isInReview);
+
+    const teamCount = await prisma.team.count({
+      where: { workspaceId },
+    });
+    const projectCount = await prisma.project.count({
+      where: { team: { workspace: { id: workspaceId } } },
+    });
+    const memberCount = await prisma.workspaceMembers.count({
+      where: { workspaceId },
+    });
+    const statusCount = await prisma.issue.groupBy({
+      by: ["statusId"],
+      where: {
+        project: {
+          is: {
+            team: {
+              workspace: {
+                id: workspaceId,
+              },
+            },
+          },
+        },
+        statusId: {
+          in: [
+            isBlockedId?.id,
+            isInProgressId?.id,
+            isInitialId?.id,
+            isCompletedId?.id,
+            isInReviewId?.id,
+            isCancelledId?.id,
+          ].filter(Boolean),
+        },
+      },
+      _count: {
+        id: true,
+      },
+    });
+
+    const statusWiseCount = statusList.map((status) => ({
+      id: status.id,
+      name: status.name,
+      color: status.color,
+      count:
+        statusCount?.find((item) => item.statusId === status.id)?._count.id ??
+        0,
+    }));
+
+    const count = {
+      teamCount,
+      projectCount,
+      memberCount,
+      statusCount: statusWiseCount,
+    };
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "ACTIVITIES_FETCHED",
+      message: "Activities fetched successfully.",
+      data: count,
     });
   },
 );

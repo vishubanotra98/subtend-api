@@ -2,6 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import {
   dashboardAttentionController,
+  dashboardCountController,
   fetchActivityController,
   getCompletedTasksCount,
 } from "../controller/dashboard.controller.js";
@@ -14,5 +15,6 @@ router.get(
   authMiddleware,
   dashboardAttentionController,
 );
+router.get("/count/:workspaceId", authMiddleware, dashboardCountController);
 
 export default router;
