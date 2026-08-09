@@ -243,10 +243,18 @@ export const dashboardCountController = asyncHandler(
       },
     });
 
-    const statusWiseCount = statusList.map((status) => ({
+    const statusWiseCount = statusList.map((status: any) => ({
       id: status.id,
       name: status.name,
       color: status.color,
+      isBlocked: status?.isBlocked,
+      isCancelled: status?.isCancelled,
+      isCompleted: status?.isCompleted,
+      isDefault: status?.isCompleted,
+      isInProgress: status?.isDefault,
+      isInReview: status?.isInReview,
+      isInitial: status?.isInitial,
+
       count:
         statusCount?.find((item) => item.statusId === status.id)?._count.id ??
         0,
