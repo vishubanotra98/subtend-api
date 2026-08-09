@@ -187,6 +187,8 @@ export const editIssueController = asyncHandler(
       assigneeId,
       priority,
       statusId,
+      targetDate,
+      blockedReason,
     } = req.body;
 
     if (!issueId || !workspaceId || !teamId || !projectId) {
@@ -217,6 +219,7 @@ export const editIssueController = asyncHandler(
       where: {
         id: issueId,
       },
+
       data: {
         title,
         description,
@@ -224,6 +227,8 @@ export const editIssueController = asyncHandler(
         statusId,
         assigneeId,
         projectId,
+        targetDate,
+        blockedReason,
       },
     });
 
@@ -320,7 +325,8 @@ export const editIssueController = asyncHandler(
 
     if (
       oldIssue.title !== updatedIssue.title ||
-      oldIssue.description !== updatedIssue.description
+      oldIssue.description !== updatedIssue.description ||
+      oldIssue.blockedReason !== updatedIssue.blockedReason
     ) {
       activities.push(
         activityLogger({
@@ -331,11 +337,13 @@ export const editIssueController = asyncHandler(
           beforeState: {
             title: oldIssue.title,
             description: oldIssue.description,
+            blockedReason: oldIssue.blockedReason,
           },
 
           afterState: {
             title: updatedIssue.title,
             description: updatedIssue.description,
+            blockedReason: updatedIssue.blockedReason,
           },
         }),
       );
@@ -364,26 +372,36 @@ export const editIssueController = asyncHandler(
         activityLogger({
           ...baseActivity,
 
-          action: ActivityAction.ASSIGNED,
+          action: updatedIssue.assigneeId
+            ? ActivityAction.ASSIGNED
+            : ActivityAction.UNASSIGNED,
 
           beforeState: {
-            assignee: previousAssignee && {
-              id: previousAssignee.id,
-              name:
-                previousAssignee.name ??
-                `${previousAssignee.firstName ?? ""} ${previousAssignee.lastName ?? ""}`.trim(),
-              image: previousAssignee.image,
-            },
+            assignee: previousAssignee
+              ? {
+                  id: previousAssignee.id,
+                  name:
+                    previousAssignee.name ??
+                    `${previousAssignee.firstName ?? ""} ${
+                      previousAssignee.lastName ?? ""
+                    }`.trim(),
+                  image: previousAssignee.image,
+                }
+              : null,
           },
 
           afterState: {
-            assignee: currentAssignee && {
-              id: currentAssignee.id,
-              name:
-                currentAssignee.name ??
-                `${currentAssignee.firstName ?? ""} ${currentAssignee.lastName ?? ""}`.trim(),
-              image: currentAssignee.image,
-            },
+            assignee: currentAssignee
+              ? {
+                  id: currentAssignee.id,
+                  name:
+                    currentAssignee.name ??
+                    `${currentAssignee.firstName ?? ""} ${
+                      currentAssignee.lastName ?? ""
+                    }`.trim(),
+                  image: currentAssignee.image,
+                }
+              : null,
           },
         }),
       );
@@ -397,19 +415,49 @@ export const editIssueController = asyncHandler(
           action: ActivityAction.STATUS_CHANGED,
 
           beforeState: {
-            status: previousStatus && {
-              id: previousStatus.id,
-              name: previousStatus.name,
-              color: previousStatus.color,
-            },
+            status: previousStatus
+              ? {
+                  id: previousStatus.id,
+                  name: previousStatus.name,
+                  color: previousStatus.color,
+                }
+              : null,
           },
 
           afterState: {
-            status: currentStatus && {
-              id: currentStatus.id,
-              name: currentStatus.name,
-              color: currentStatus.color,
-            },
+            status: currentStatus
+              ? {
+                  id: currentStatus.id,
+                  name: currentStatus.name,
+                  color: currentStatus.color,
+                }
+              : null,
+          },
+        }),
+      );
+    }
+
+    const oldTargetDate = oldIssue.targetDate
+      ? new Date(oldIssue.targetDate).getTime()
+      : null;
+
+    const newTargetDate = updatedIssue.targetDate
+      ? new Date(updatedIssue.targetDate).getTime()
+      : null;
+
+    if (oldTargetDate !== newTargetDate) {
+      activities.push(
+        activityLogger({
+          ...baseActivity,
+
+          action: ActivityAction.TARGET_DATE_CHANGED,
+
+          beforeState: {
+            targetDate: oldIssue.targetDate,
+          },
+
+          afterState: {
+            targetDate: updatedIssue.targetDate,
           },
         }),
       );
