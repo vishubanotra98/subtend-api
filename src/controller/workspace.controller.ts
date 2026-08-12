@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
-import { DEFAULT_STATUSES } from "../constants/constant.js";
+import { DEFAULT_STATUSES, DELETION_JOBS } from "../constants/constant.js";
 import dayjs from "dayjs";
+import { deletionQueue } from "../queue/deletion.queue.js";
 
 export const fetchWorkspaceController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -170,8 +171,17 @@ export const fetchTeamProjectController = asyncHandler(
     }
 
     const teamProject = await prisma.team.findMany({
-      where: { workspaceId },
-      include: { projects: true },
+      where: {
+        workspaceId,
+        deletedAt: null,
+      },
+      include: {
+        projects: {
+          where: {
+            deletedAt: null,
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -291,6 +301,8 @@ export const createProjectController = asyncHandler(
       data: {
         name: projectName,
         teamId,
+        projectOverview,
+        targetDate,
       },
     });
 
@@ -429,6 +441,47 @@ export const fetchStatusController = asyncHandler(
       data: {
         status: statusList,
       },
+    });
+  },
+);
+
+// Soft Deletion
+export const deleteTeamController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { teamId } = req.body;
+
+    const team = await prisma.team.findUnique({
+      where: { id: teamId, deletedAt: null },
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        code: "TEAM_NOT_FOUND",
+        status: 404,
+        message: "Team not found or has already been deleted.",
+      });
+    }
+
+    await prisma.team.update({
+      where: { id: teamId },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+
+    const data = { teamId: team?.id };
+
+    await deletionQueue.add(DELETION_JOBS.TEAM_DELETION, data, {
+      delay: 2 * 60 * 1000,
+      removeOnComplete: true,
+      removeOnFail: false,
+    });
+    return res.status(200).json({
+      success: true,
+      code: "TEAM_DELETION_SCHEDULED",
+      status: 200,
+      message: "Team has been scheduled for permanent deletion.",
     });
   },
 );
