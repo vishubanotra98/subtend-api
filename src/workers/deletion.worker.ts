@@ -3,6 +3,7 @@ import { Job, Worker } from "bullmq";
 import { DELETION_JOBS } from "../constants/constant.js";
 import connection from "../config/redis.js";
 import { prisma } from "../lib/prisma.js";
+import { deletionQueue } from "../queue/deletion.queue.js";
 
 const deletionWorker = new Worker(
   "deletionQueue",
@@ -11,7 +12,9 @@ const deletionWorker = new Worker(
 
     switch (JOB_NAME) {
       case DELETION_JOBS.TEAM_DELETION:
-        const { teamId } = job.data;
+        const { teamId, deletedAt } = job.data;
+
+        const jobDeletedAt = new Date(deletedAt).getTime();
 
         const team = await prisma.team.findUnique({
           where: { id: teamId },
@@ -20,7 +23,12 @@ const deletionWorker = new Worker(
         if (!team) {
           return;
         }
-        if (!team?.deletedAt) {
+
+        if (!team.deletedAt) {
+          return;
+        }
+
+        if (team.deletedAt.getTime() !== jobDeletedAt) {
           return;
         }
 
@@ -28,14 +36,39 @@ const deletionWorker = new Worker(
           where: { id: teamId },
         });
 
-        await prisma.team.findFirst({
-          where: { id: teamId },
+        break;
+
+      case DELETION_JOBS.PROJECT_DELETION: {
+        const { projectId, deletedAt } = job.data;
+
+        const jobDeletedAt = new Date(deletedAt).getTime();
+
+        const project = await prisma.project.findUnique({
+          where: {
+            id: projectId,
+          },
+        });
+
+        if (!project) {
+          return;
+        }
+
+        if (!project.deletedAt) {
+          return;
+        }
+
+        if (project.deletedAt.getTime() !== jobDeletedAt) {
+          return;
+        }
+
+        await prisma.project.delete({
+          where: {
+            id: projectId,
+          },
         });
 
         break;
-
-      case DELETION_JOBS.PROJECT_DELETION:
-        break;
+      }
 
       case DELETION_JOBS.WORKSPACE_DELETION:
         break;
@@ -56,7 +89,7 @@ deletionWorker.on("error", (err) => {
 });
 
 deletionWorker.on("completed", (job) => {
-  console.log(`${job.name} sent to ${job.data.email}`);
+  console.log(`${job.name} Deleted `);
 });
 
 // instead of console.error, i can do something later like ---

@@ -38,7 +38,13 @@ export const dashboardAttentionController = asyncHandler(
 
     const issues = await prisma.issue.findMany({
       where: {
-        project: { team: { workspace: { id: workspaceId } } },
+        project: {
+          team: {
+            workspace: { id: workspaceId },
+            deletedAt: null,
+          },
+          deletedAt: null,
+        },
       },
       select: {
         id: true,
@@ -110,6 +116,7 @@ export const getCompletedTasksCount = asyncHandler(
         project: { team: { workspaceId } },
         statusId,
         createdAt: { gte: startDate },
+        deletedAt: null,
       },
       select: { createdAt: true },
     });
@@ -183,7 +190,7 @@ export const dashboardCountController = asyncHandler(
     }
 
     const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
+      where: { id: workspaceId, deletedAt: null },
       include: {
         statuses: true,
       },
@@ -207,17 +214,23 @@ export const dashboardCountController = asyncHandler(
     const isInReviewId = statusList.find((st) => st.isInReview);
 
     const teamCount = await prisma.team.count({
-      where: { workspaceId },
+      where: { workspaceId, deletedAt: null },
     });
     const projectCount = await prisma.project.count({
-      where: { team: { workspace: { id: workspaceId } } },
+      where: {
+        team: { workspace: { id: workspaceId, deletedAt: null } },
+        deletedAt: null,
+      },
     });
+
     const memberCount = await prisma.workspaceMembers.count({
       where: { workspaceId },
     });
+
     const statusCount = await prisma.issue.groupBy({
       by: ["statusId"],
       where: {
+        deletedAt: null,
         project: {
           is: {
             team: {

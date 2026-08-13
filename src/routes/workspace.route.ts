@@ -10,6 +10,9 @@ import {
   fetchStatusController,
   fetchWorkspaceMembers,
   fetchProjectByIdController,
+  deleteTeamController,
+  fetchProjectsController,
+  deleteProjectController,
 } from "../controller/workspace.controller.js";
 
 const router = Router();
@@ -25,7 +28,15 @@ router.post("/team", authMiddleware, createTeamController);
 //   // lastActiveWorkspaceController,
 // );
 router.post("/project", authMiddleware, createProjectController);
+router.get("/projects/:workspaceId", authMiddleware, fetchProjectsController);
 router.get("/project/:projectId", authMiddleware, fetchProjectByIdController);
 router.get("/status/:workspaceId", authMiddleware, fetchStatusController);
+
+router.patch("/team/:teamId/delete", authMiddleware, deleteTeamController);
+router.patch(
+  "/project/:projectId/delete",
+  authMiddleware,
+  deleteProjectController,
+);
 
 export default router;
