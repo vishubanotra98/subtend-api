@@ -138,6 +138,7 @@ export const createIssueController = asyncHandler(
         targetDate: issue.targetDate,
         blockedReason: issue.blockedReason,
         blockedAt: issue.blockedAt,
+        deletedAt: issue?.deletedAt,
       },
       beforeState: null,
       afterState: {
@@ -203,6 +204,7 @@ export const editIssueController = asyncHandler(
     const oldIssue = await prisma.issue.findUnique({
       where: {
         id: issueId,
+        deletedAt: null,
       },
     });
 
@@ -500,6 +502,7 @@ export const deleteIssueController = asyncHandler(
     const issue = await prisma.issue.findUnique({
       where: {
         id: issueId,
+        deletedAt: null,
       },
     });
 
@@ -575,6 +578,7 @@ export const deleteIssueController = asyncHandler(
       issue: {
         id: issue.id,
         title: issue.title,
+        deletedAt: issue?.deletedAt,
       },
       beforeState: {
         status: status && {
@@ -621,7 +625,7 @@ export const fetchIssueByProjectController = asyncHandler(
     }
 
     const issueList = await prisma.issue.findMany({
-      where: { projectId },
+      where: { projectId, deletedAt: null },
     });
 
     return res.status(200).json({
@@ -734,6 +738,7 @@ export const moveCardController = asyncHandler(
       issue: {
         id: updatedIssue.id,
         title: updatedIssue.title,
+        issue: updatedIssue.deletedAt,
       },
 
       beforeState: {

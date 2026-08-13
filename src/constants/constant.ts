@@ -85,6 +85,12 @@ export const EMAIL_JOBS = {
   INVITATION: "invitationEmail",
 } as const;
 
+export const DELETION_JOBS = {
+  WORKSPACE_DELETION: "workspaceDeletion",
+  TEAM_DELETION: "teamDeletion",
+  PROJECT_DELETION: "projectDeletion",
+};
+
 export const ActivityAction = {
   CREATED: "CREATED",
   UPDATED: "UPDATED",
@@ -100,4 +106,6 @@ export const ActivityAction = {
   COMMENT_ADDED: "COMMENT_ADDED",
   COMPLETED: "COMPLETED",
   REOPENED: "REOPENED",
+  PROJECT_DELETE: "PROJECT_DELETE",
+  TEAM_DELETE: "TEAM_DELETE",
 };

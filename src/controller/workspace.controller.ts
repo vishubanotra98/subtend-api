@@ -1,8 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
-import { DEFAULT_STATUSES } from "../constants/constant.js";
+import {
+  ActivityAction,
+  DEFAULT_STATUSES,
+  DELETION_JOBS,
+} from "../constants/constant.js";
 import dayjs from "dayjs";
+import { deletionQueue } from "../queue/deletion.queue.js";
+import { activityLogger } from "../utils/activityHandler.js";
 
 export const fetchWorkspaceController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -170,8 +176,17 @@ export const fetchTeamProjectController = asyncHandler(
     }
 
     const teamProject = await prisma.team.findMany({
-      where: { workspaceId },
-      include: { projects: true },
+      where: {
+        workspaceId,
+        deletedAt: null,
+      },
+      include: {
+        projects: {
+          where: {
+            deletedAt: null,
+          },
+        },
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -291,6 +306,8 @@ export const createProjectController = asyncHandler(
       data: {
         name: projectName,
         teamId,
+        projectOverview,
+        targetDate,
       },
     });
 
@@ -318,10 +335,8 @@ export const fetchProjectByIdController = asyncHandler(
     }
 
     const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      include: {
-        team: true,
-      },
+      where: { id: projectId, deletedAt: null, team: { deletedAt: null } },
+      include: { team: true },
     });
 
     if (!project) {
@@ -329,7 +344,8 @@ export const fetchProjectByIdController = asyncHandler(
         success: false,
         status: 404,
         code: "PROJECT NOT FOUND",
-        message: "Project with this project id does not exist.",
+        message:
+          "Project with this project id is either deleted or does not exist.",
       });
     }
 
@@ -429,6 +445,278 @@ export const fetchStatusController = asyncHandler(
       data: {
         status: statusList,
       },
+    });
+  },
+);
+
+export const fetchProjectsController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { workspaceId } = req.params;
+
+    if (!workspaceId || typeof workspaceId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_WORKSPACE_ID",
+        status: 400,
+        message: "Invalid Workspace Id",
+      });
+    }
+
+    const projects = await prisma.project.findMany({
+      where: { team: { workspace: { id: workspaceId } }, deletedAt: null },
+    });
+
+    if (!projects || projects?.length < 1) {
+      return res.status(404).json({
+        success: false,
+        code: "NO_PROJECTS_FOUND",
+        status: 404,
+        message: "No Projects found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      code: "PROJECTS_FETCHED",
+      status: 200,
+      message: "Projects fetched.",
+      data: {
+        projects,
+      },
+    });
+  },
+);
+
+export const deleteTeamController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { teamId } = req.params;
+
+    if (!teamId || typeof teamId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_TEAM_ID",
+        status: 400,
+        message: "A valid team ID is required.",
+      });
+    }
+
+    const actorId = req.userId;
+    const actor = await prisma.user.findUnique({
+      where: { id: actorId },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        image: true,
+      },
+    });
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        code: "UNAUTHORIZED",
+        status: 401,
+        message: "User authentication is required.",
+      });
+    }
+
+    const team = await prisma.team.findUnique({
+      where: { id: teamId, deletedAt: null },
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        code: "TEAM_NOT_FOUND",
+        status: 404,
+        message: "Team not found or has already been deleted.",
+      });
+    }
+
+    const deletedAt = new Date();
+
+    await prisma.$transaction([
+      prisma.team.update({
+        where: { id: teamId, deletedAt: null },
+        data: { deletedAt },
+      }),
+      prisma.project.updateMany({
+        where: { team: { id: teamId }, deletedAt: null },
+        data: { deletedAt },
+      }),
+
+      prisma.issue.updateMany({
+        where: { project: { team: { id: teamId } }, deletedAt: null },
+        data: { deletedAt },
+      }),
+    ]);
+
+    const loggerData = {
+      action: ActivityAction.TEAM_DELETE,
+      workspaceId: team?.workspaceId,
+      actor: {
+        id: actor?.id,
+        name:
+          actor?.name ??
+          `${actor?.firstName ?? ""} ${actor?.lastName ?? ""}`.trim(),
+        image: actor?.image,
+      },
+      team: {
+        id: team?.id,
+        name: team?.name,
+        deletedAt,
+      },
+    };
+
+    activityLogger(loggerData).catch((err) =>
+      console.error("Activity log failed:", err),
+    );
+
+    const data = { teamId: team?.id, deletedAt };
+
+    await deletionQueue.add(DELETION_JOBS.TEAM_DELETION, data, {
+      delay: 2 * 60 * 1000,
+      removeOnComplete: true,
+      removeOnFail: false,
+      attempts: 5,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: "TEAM_DELETION_SCHEDULED",
+      status: 200,
+      message: "Team has been scheduled for permanent deletion.",
+    });
+  },
+);
+
+export const deleteProjectController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { projectId } = req.params;
+
+    if (!projectId || typeof projectId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PROJECT_ID",
+        status: 400,
+        message: "A valid project ID is required.",
+      });
+    }
+
+    const actorId = req.userId;
+
+    const actor = await prisma.user.findUnique({
+      where: { id: actorId },
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        image: true,
+      },
+    });
+
+    if (!actor) {
+      return res.status(401).json({
+        success: false,
+        code: "UNAUTHORIZED",
+        status: 401,
+        message: "User authentication is required.",
+      });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: {
+        id: projectId,
+        deletedAt: null,
+      },
+      select: { id: true, name: true, team: { select: { workspaceId: true } } },
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        code: "PROJECT_NOT_FOUND",
+        status: 404,
+        message: "Project not found or has already been deleted.",
+      });
+    }
+
+    const deletedAt = new Date();
+
+    await prisma.$transaction([
+      prisma.project.update({
+        where: {
+          id: projectId,
+          deletedAt: null,
+        },
+        data: {
+          deletedAt,
+        },
+      }),
+
+      prisma.issue.updateMany({
+        where: {
+          project: {
+            id: projectId,
+          },
+          deletedAt: null,
+        },
+        data: {
+          deletedAt,
+        },
+      }),
+    ]);
+
+    const loggerData = {
+      action: ActivityAction.PROJECT_DELETE,
+      workspaceId: project.team.workspaceId,
+      actor: {
+        id: actor.id,
+        name:
+          actor.name ??
+          `${actor.firstName ?? ""} ${actor.lastName ?? ""}`.trim(),
+        image: actor.image,
+      },
+      project: {
+        id: project.id,
+        name: project.name,
+        deletedAt,
+      },
+    };
+
+    activityLogger(loggerData).catch((err) =>
+      console.error("Activity log failed:", err),
+    );
+
+    const data = {
+      projectId: project?.id,
+      projectDeletedAt: deletedAt.toISOString(),
+    };
+
+    await deletionQueue.add(DELETION_JOBS.PROJECT_DELETION, data, {
+      delay: 2 * 60 * 1000,
+      removeOnComplete: true,
+      removeOnFail: false,
+      attempts: 5,
+      backoff: {
+        type: "exponential",
+        delay: 5000,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: "PROJECT_DELETION_SCHEDULED",
+      status: 200,
+      message: "Project has been scheduled for permanent deletion.",
     });
   },
 );
