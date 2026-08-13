@@ -466,7 +466,7 @@ export const fetchProjectsController = asyncHandler(
       where: { team: { workspace: { id: workspaceId } }, deletedAt: null },
     });
 
-    if (!projects || projects?.length < 1) {
+    if (!projects || projects?.length === 0) {
       return res.status(404).json({
         success: false,
         code: "NO_PROJECTS_FOUND",

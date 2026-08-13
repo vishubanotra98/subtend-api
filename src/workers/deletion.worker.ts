@@ -3,7 +3,6 @@ import { Job, Worker } from "bullmq";
 import { DELETION_JOBS } from "../constants/constant.js";
 import connection from "../config/redis.js";
 import { prisma } from "../lib/prisma.js";
-import { deletionQueue } from "../queue/deletion.queue.js";
 
 const deletionWorker = new Worker(
   "deletionQueue",
@@ -39,9 +38,9 @@ const deletionWorker = new Worker(
         break;
 
       case DELETION_JOBS.PROJECT_DELETION: {
-        const { projectId, deletedAt } = job.data;
+        const { projectId, projectDeletedAt } = job.data;
 
-        const jobDeletedAt = new Date(deletedAt).getTime();
+        const jobDeletedAt = new Date(projectDeletedAt).getTime();
 
         const project = await prisma.project.findUnique({
           where: {
