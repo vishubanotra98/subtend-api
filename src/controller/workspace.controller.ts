@@ -720,3 +720,347 @@ export const deleteProjectController = asyncHandler(
     });
   },
 );
+
+export const fetchSoftDeletedTeamsController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { teamId } = req.params;
+
+    if (!teamId || typeof teamId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_TEAM_ID",
+        status: 400,
+        message: "A valid Team ID is required.",
+      });
+    }
+
+    const teams = await prisma.team.findMany({
+      where: {
+        id: teamId,
+        deletedAt: {
+          not: null,
+        },
+      },
+      include: {
+        projects: {
+          select: {
+            _count: true,
+          },
+          deletedAt: {
+            not: null,
+          },
+        },
+      },
+    });
+
+    if (!teams || teams?.length === 0) {
+      return res.status(404).json({
+        success: false,
+        code: "TEAMS_NOT_FOUND",
+        status: 404,
+        message: "Teams not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      code: "PROJECT_DELETION_SCHEDULED",
+      status: 200,
+      message: "Project has been scheduled for permanent deletion.",
+    });
+  },
+);
+
+export const fetchSoftDeletedProjectsController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { projectId } = req.params;
+
+    if (!projectId || typeof projectId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PROJECT_ID",
+        status: 400,
+        message: "A valid project ID is required.",
+      });
+    }
+
+    const projects = await prisma.project.findMany({
+      where: {
+        id: projectId,
+        deletedAt: {
+          not: null,
+        },
+      },
+      select: { id: true, name: true },
+    });
+
+    if (!projects || projects?.length === 0) {
+      return res.status(404).json({
+        success: false,
+        code: "PROJECT_NOT_FOUND",
+        status: 404,
+        message: "No deleted projects found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      code: "DELETED_PROJECTS_FETCHED",
+      status: 200,
+      message: "Deleted projects fetched.",
+    });
+  },
+);
+
+export const restoreProjectController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { projectId } = req.params;
+
+    if (!projectId || typeof projectId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PROJECT_ID",
+        status: 400,
+        message: "A valid project ID is required.",
+      });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: {
+        id: projectId,
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        code: "PROJECT_NOT_FOUND",
+        status: 404,
+        message: "Project not found.",
+      });
+    }
+
+    if (!project.deletedAt) {
+      return res.status(409).json({
+        success: false,
+        code: "PROJECT_NOT_DELETED",
+        status: 409,
+        message: "Project is already active.",
+      });
+    }
+
+    const restoredProject = await prisma.$transaction(async (tx) => {
+      const project = await tx.project.update({
+        where: { id: projectId },
+        data: { deletedAt: null },
+      });
+
+      await tx.issue.updateMany({
+        where: {
+          projectId,
+          deletedAt: {
+            not: null,
+          },
+        },
+        data: {
+          deletedAt: null,
+        },
+      });
+
+      return project;
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: "PROJECT_RESTORED",
+      status: 200,
+      message: "Project restored.",
+      data: { project: restoredProject },
+    });
+  },
+);
+
+export const restoreTeamController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { teamId } = req.params;
+
+    if (!teamId || typeof teamId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_TEAM_ID",
+        status: 400,
+        message: "A valid Team ID is required.",
+      });
+    }
+
+    const team = await prisma.team.findUnique({
+      where: {
+        id: teamId,
+      },
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        code: "TEAM_NOT_FOUND",
+        status: 404,
+        message: "Team not found.",
+      });
+    }
+
+    if (!team.deletedAt) {
+      return res.status(409).json({
+        success: false,
+        code: "TEAM_NOT_DELETED",
+        status: 409,
+        message: "Team is already active.",
+      });
+    }
+
+    const restoredTeam = await prisma.$transaction(async (tx) => {
+      const team = await tx.team.update({
+        where: { id: teamId },
+        data: { deletedAt: null },
+      });
+
+      await tx.project.updateMany({
+        where: {
+          teamId,
+          deletedAt: {
+            not: null,
+          },
+        },
+        data: {
+          deletedAt: null,
+        },
+      });
+
+      await tx.issue.updateMany({
+        where: { project: { teamId }, deletedAt: { not: null } },
+        data: { deletedAt: null },
+      });
+
+      return team;
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: "TEAM_RESTORED",
+      status: 200,
+      message: "Team restored.",
+      data: { team: restoredTeam },
+    });
+  },
+);
+
+export const permanentlyDeleteProjectController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { projectId } = req.params;
+
+    if (!projectId || typeof projectId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_PROJECT_ID",
+        status: 400,
+        message: "A valid project ID is required.",
+      });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: {
+        id: projectId,
+      },
+      select: {
+        id: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        code: "PROJECT_NOT_FOUND",
+        status: 404,
+        message: "Project not found.",
+      });
+    }
+
+    if (!project.deletedAt) {
+      return res.status(409).json({
+        success: false,
+        code: "PROJECT_NOT_DELETED",
+        status: 409,
+        message: "Project is active and cannot be permanently deleted.",
+      });
+    }
+
+    await prisma.project.delete({
+      where: {
+        id: projectId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: "PROJECT_PERMANENTLY_DELETED",
+      status: 200,
+      message: "Project permanently deleted.",
+    });
+  },
+);
+
+export const permanentlyDeleteTeamController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { teamId } = req.params;
+
+    if (!teamId || typeof teamId !== "string") {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_TEAM_ID",
+        status: 400,
+        message: "A valid Team ID is required.",
+      });
+    }
+
+    const team = await prisma.team.findUnique({
+      where: {
+        id: teamId,
+      },
+      select: {
+        id: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        code: "TEAM_NOT_FOUND",
+        status: 404,
+        message: "Team not found.",
+      });
+    }
+
+    if (!team.deletedAt) {
+      return res.status(409).json({
+        success: false,
+        code: "TEAM_NOT_DELETED",
+        status: 409,
+        message: "Team is active and cannot be permanently deleted.",
+      });
+    }
+
+    await prisma.team.delete({
+      where: {
+        id: teamId,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      code: "TEAM_PERMANENTLY_DELETED",
+      status: 200,
+      message: "Team permanently deleted.",
+    });
+  },
+);
