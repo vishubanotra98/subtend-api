@@ -48,12 +48,12 @@ router.patch(
 
 // Fetch Deleted Projects
 router.get(
-  "/project/:projectId/delete",
+  "/project/:workspaceId/delete",
   authMiddleware,
   fetchSoftDeletedProjectsController,
 );
 router.get(
-  "/team/:teamId/delete",
+  "/team/:workspaceId/delete",
   authMiddleware,
   fetchSoftDeletedTeamsController,
 );
