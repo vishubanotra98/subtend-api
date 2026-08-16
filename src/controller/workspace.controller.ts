@@ -466,7 +466,7 @@ export const fetchProjectsController = asyncHandler(
       where: { team: { workspace: { id: workspaceId } }, deletedAt: null },
     });
 
-    if (!projects || projects?.length === 0) {
+    if (!projects) {
       return res.status(404).json({
         success: false,
         code: "NO_PROJECTS_FOUND",
@@ -577,7 +577,7 @@ export const deleteTeamController = asyncHandler(
     const data = { teamId: team?.id, deletedAt };
 
     await deletionQueue.add(DELETION_JOBS.TEAM_DELETION, data, {
-      delay: 2 * 60 * 1000,
+      delay: 20 * 60 * 1000,
       removeOnComplete: true,
       removeOnFail: false,
       attempts: 5,
@@ -723,59 +723,64 @@ export const deleteProjectController = asyncHandler(
 
 export const fetchSoftDeletedTeamsController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { teamId } = req.params;
+    const { workspaceId } = req.params;
 
-    if (!teamId || typeof teamId !== "string") {
+    if (!workspaceId || typeof workspaceId !== "string") {
       return res.status(400).json({
         success: false,
-        code: "INVALID_TEAM_ID",
+        code: "INVALID_WORKSPACE_ID",
         status: 400,
-        message: "A valid Team ID is required.",
+        message: "A valid Workspace ID is required.",
       });
     }
 
     const teams = await prisma.team.findMany({
       where: {
-        id: teamId,
+        workspace: { id: workspaceId },
         deletedAt: {
           not: null,
         },
       },
       include: {
         projects: {
-          select: {
-            _count: true,
+          where: {
+            deletedAt: {
+              not: null,
+            },
           },
-          deletedAt: {
-            not: null,
+          select: {
+            id: true,
+            name: true,
+            teamId: true,
           },
         },
       },
     });
 
-    if (!teams || teams?.length === 0) {
+    if (!teams) {
       return res.status(404).json({
         success: false,
-        code: "TEAMS_NOT_FOUND",
+        code: "DELETED_TEAM_NOT_FOUND",
         status: 404,
-        message: "Teams not found.",
+        message: "Deleted Teams not found.",
       });
     }
 
     return res.status(200).json({
       success: true,
-      code: "PROJECT_DELETION_SCHEDULED",
+      code: "DELETED_TEAMS_FETCHED",
       status: 200,
-      message: "Project has been scheduled for permanent deletion.",
+      message: "Deleted teams fetched",
+      data: { teams },
     });
   },
 );
 
 export const fetchSoftDeletedProjectsController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { projectId } = req.params;
+    const { workspaceId } = req.params;
 
-    if (!projectId || typeof projectId !== "string") {
+    if (!workspaceId || typeof workspaceId !== "string") {
       return res.status(400).json({
         success: false,
         code: "INVALID_PROJECT_ID",
@@ -786,18 +791,23 @@ export const fetchSoftDeletedProjectsController = asyncHandler(
 
     const projects = await prisma.project.findMany({
       where: {
-        id: projectId,
+        team: { workspaceId },
         deletedAt: {
           not: null,
         },
       },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        deletedAt: true,
+        team: { select: { name: true, id: true } },
+      },
     });
 
-    if (!projects || projects?.length === 0) {
+    if (!projects) {
       return res.status(404).json({
         success: false,
-        code: "PROJECT_NOT_FOUND",
+        code: "DELETED_PROJECT_NOT_FOUND",
         status: 404,
         message: "No deleted projects found.",
       });
@@ -808,6 +818,7 @@ export const fetchSoftDeletedProjectsController = asyncHandler(
       code: "DELETED_PROJECTS_FETCHED",
       status: 200,
       message: "Deleted projects fetched.",
+      data: { projects },
     });
   },
 );
