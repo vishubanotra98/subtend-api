@@ -6,7 +6,6 @@ import {
   DEFAULT_STATUSES,
   DELETION_JOBS,
 } from "../constants/constant.js";
-import dayjs from "dayjs";
 import { deletionQueue } from "../queue/deletion.queue.js";
 import { activityLogger } from "../utils/activityHandler.js";
 
