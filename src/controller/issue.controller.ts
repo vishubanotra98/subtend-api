@@ -615,7 +615,10 @@ export const fetchIssueByProjectController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { projectId } = req.params;
 
-    if (typeof projectId !== "string") {
+    const { search, startDate, endDate, assignee, status, priority } =
+      req.query;
+
+    if (typeof projectId !== "string" || !projectId) {
       return res.status(400).json({
         success: false,
         status: 400,
@@ -624,16 +627,130 @@ export const fetchIssueByProjectController = asyncHandler(
       });
     }
 
+    const where: any = {
+      projectId,
+      deletedAt: null,
+    };
+
+    if (typeof search === "string" && search.trim()) {
+      const searchValue = search.trim();
+
+      const ticketNumber = Number(searchValue);
+
+      if (!Number.isNaN(ticketNumber)) {
+        where.OR = [
+          {
+            ticket_num: ticketNumber,
+          },
+          {
+            title: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+          {
+            description: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+        ];
+      } else {
+        where.OR = [
+          {
+            title: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+          {
+            description: {
+              contains: searchValue,
+              mode: "insensitive",
+            },
+          },
+        ];
+      }
+    }
+
+    if (typeof assignee === "string" && assignee) {
+      where.assigneeId = assignee;
+    }
+
+    if (typeof status === "string" && status) {
+      where.statusId = status;
+    }
+
+    if (typeof priority === "string" && priority) {
+      const normalizedPriority = priority.toUpperCase();
+
+      const validPriorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+
+      if (!validPriorities.includes(normalizedPriority)) {
+        return res.status(400).json({
+          success: false,
+          status: 400,
+          code: "INVALID_PRIORITY",
+          message: "Invalid priority",
+        });
+      }
+
+      where.priority = normalizedPriority;
+    }
+
+    if (startDate || endDate) {
+      where.targetDate = {};
+
+      if (typeof startDate === "string" && startDate) {
+        const parsedStartDate = new Date(startDate);
+
+        if (Number.isNaN(parsedStartDate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            status: 400,
+            code: "INVALID_START_DATE",
+            message: "Invalid startDate",
+          });
+        }
+
+        parsedStartDate.setUTCHours(0, 0, 0, 0);
+
+        where.targetDate.gte = parsedStartDate;
+      }
+
+      if (typeof endDate === "string" && endDate) {
+        const parsedEndDate = new Date(endDate);
+
+        if (Number.isNaN(parsedEndDate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            status: 400,
+            code: "INVALID_END_DATE",
+            message: "Invalid endDate",
+          });
+        }
+
+        parsedEndDate.setUTCHours(23, 59, 59, 999);
+
+        where.targetDate.lte = parsedEndDate;
+      }
+    }
+
     const issueList = await prisma.issue.findMany({
-      where: { projectId, deletedAt: null },
+      where,
+      orderBy: {
+        createdAt: "desc",
+      },
     });
 
     return res.status(200).json({
       success: true,
       status: 200,
       code: "PROJECT_ISSUES_FETCHED",
-      message: "Issue fetched successfully.",
-      data: { issues: issueList },
+      message: "Issues fetched successfully.",
+      data: {
+        issues: issueList,
+      },
     });
   },
 );
