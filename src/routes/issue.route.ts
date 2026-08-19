@@ -6,6 +6,7 @@ import {
   editIssueController,
   fetchIssueByProjectController,
   fetchIssuesController,
+  getMyIssuesController,
   moveCardController,
 } from "../controller/issue.controller.js";
 
@@ -21,5 +22,10 @@ router.get(
   fetchIssueByProjectController,
 );
 router.put("/issue-move", authMiddleware, moveCardController);
+router.get(
+  "/workspace/:workspaceId/my-issues",
+  authMiddleware,
+  getMyIssuesController,
+);
 
 export default router;

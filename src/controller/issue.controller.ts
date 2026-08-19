@@ -887,3 +887,148 @@ export const moveCardController = asyncHandler(
     });
   },
 );
+
+export const getMyIssuesController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { workspaceId } = req.params;
+    const userId = req.userId;
+
+    if (!workspaceId || typeof workspaceId !== "string") {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "INVALID_WORKSPACE_ID",
+        message: "Invalid workspace id.",
+      });
+    }
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        status: 401,
+        code: "UNAUTHORIZED",
+        message: "Authentication is required.",
+      });
+    }
+
+    const membership = await prisma.workspaceMembers.findUnique({
+      where: {
+        userId_workspaceId: {
+          userId,
+          workspaceId,
+        },
+      },
+      select: {
+        userId: true,
+        role: true,
+      },
+    });
+
+    if (!membership) {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        code: "WORKSPACE_ACCESS_DENIED",
+        message: "You do not have access to this workspace.",
+      });
+    }
+
+    const issues = await prisma.issue.findMany({
+      where: {
+        assigneeId: userId,
+        deletedAt: null,
+
+        project: {
+          deletedAt: null,
+
+          team: {
+            workspaceId,
+            deletedAt: null,
+          },
+        },
+      },
+
+      select: {
+        id: true,
+        title: true,
+        ticket_num: true,
+        priority: true,
+        targetDate: true,
+        blockedAt: true,
+        blockedReason: true,
+        createdAt: true,
+        updatedAt: true,
+
+        status: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            order: true,
+            isBlocked: true,
+            isCompleted: true,
+            isInProgress: true,
+            isInReview: true,
+            isCancelled: true,
+          },
+        },
+
+        project: {
+          select: {
+            id: true,
+            name: true,
+
+            team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+
+    const open = issues.filter(
+      (issue) => !issue.status?.isCompleted && !issue.status?.isCancelled,
+    ).length;
+
+    const inProgress = issues.filter(
+      (issue) => issue.status?.isInProgress,
+    ).length;
+
+    const inReview = issues.filter((issue) => issue.status?.isInReview).length;
+
+    const completed = issues.filter(
+      (issue) => issue.status?.isCompleted,
+    ).length;
+
+    const urgent = issues.filter((issue) => issue.priority === "URGENT").length;
+
+    const high = issues.filter((issue) => issue.priority === "HIGH").length;
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "MY_ISSUES_FETCHED",
+      message: "Your issues fetched successfully.",
+      data: {
+        issues,
+
+        counts: {
+          total: issues.length,
+          open,
+          inProgress,
+          inReview,
+          completed,
+          urgent,
+          high,
+        },
+      },
+    });
+  },
+);
