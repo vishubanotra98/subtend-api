@@ -7,6 +7,7 @@ import { attentionCalculation } from "../helpers/attention.helper.js";
 export const dashboardAttentionController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { workspaceId } = req.params;
+    const userId = req.userId;
 
     if (typeof workspaceId !== "string" || !workspaceId) {
       return res.status(400).json({
@@ -17,11 +18,30 @@ export const dashboardAttentionController = asyncHandler(
       });
     }
 
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        status: 401,
+        code: "UNAUTHORIZED",
+        message: "Authentication is required.",
+      });
+    }
+
     const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId },
+      where: {
+        id: workspaceId,
+      },
       include: {
         statuses: true,
-        members: true,
+        members: {
+          where: {
+            userId,
+          },
+          select: {
+            userId: true,
+            role: true,
+          },
+        },
       },
     });
 
@@ -30,22 +50,40 @@ export const dashboardAttentionController = asyncHandler(
         success: false,
         status: 404,
         code: "WORKSPACE_NOT_FOUND",
-        message: "Workspace with this does not exist.",
+        message: "Workspace does not exist.",
       });
     }
 
-    const statusList = workspace?.statuses;
+    const membership = workspace.members[0];
+
+    if (!membership) {
+      return res.status(403).json({
+        success: false,
+        status: 403,
+        code: "WORKSPACE_ACCESS_DENIED",
+        message: "You do not have access to this workspace.",
+      });
+    }
+
+    const isAdmin = membership.role === "ADMIN";
 
     const issues = await prisma.issue.findMany({
       where: {
         project: {
           team: {
-            workspace: { id: workspaceId },
+            workspaceId,
             deletedAt: null,
           },
           deletedAt: null,
         },
+
+        ...(isAdmin
+          ? {}
+          : {
+              assigneeId: userId,
+            }),
       },
+
       select: {
         id: true,
         title: true,
@@ -83,15 +121,17 @@ export const dashboardAttentionController = asyncHandler(
 
     const attentionIssues = attentionCalculation({
       issues,
-      statusList,
+      statusList: workspace.statuses,
     });
 
     return res.status(200).json({
       success: true,
       status: 200,
       code: "ATTENTION_FETCHED",
-      message: "Attention Issues fetched successfully.",
-      data: { attentionIssues },
+      message: "Attention issues fetched successfully.",
+      data: {
+        attentionIssues,
+      },
     });
   },
 );
