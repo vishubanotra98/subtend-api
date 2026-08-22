@@ -56,6 +56,16 @@ model FederatedCredential {
   @@map("federated_credentials")
 }
 
+model GithubIntegration {
+  id                   String   @id @default(cuid())
+  workspaceId          String
+  access_token         String
+  refresh_token        String
+  accessTokenExpireAt  DateTime
+  refreshTokenExpireAt DateTime
+  
+}
+
 model Workspace {
   id          String             @id @default(cuid())
   name        String
