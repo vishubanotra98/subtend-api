@@ -58,12 +58,13 @@ model FederatedCredential {
 
 model GithubIntegration {
   id                   String   @id @default(cuid())
-  workspaceId          String
+  workspaceId          String   @unique
   access_token         String
   refresh_token        String
   accessTokenExpireAt  DateTime
   refreshTokenExpireAt DateTime
-  
+  repo_name            String?
+  projectId            String?
 }
 
 model Workspace {

@@ -12,6 +12,7 @@ import {
 } from "../controller/googleAuth.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import {
+  getGithubIntegrationStatusController,
   githubCallBackController,
   githubLoginController,
 } from "../controller/githubAuthController.js";
@@ -28,8 +29,13 @@ router.get("/login/google", googleLoginController);
 router.get("/oauth2/redirect/google", googleCallbackController);
 
 // github
-router.get("/login/github", githubLoginController);
-router.get("/github/callback", githubCallBackController);
+router.get("/login/github", authMiddleware, githubLoginController);
+router.get("/github/callback", authMiddleware, githubCallBackController);
+router.get(
+  "/github/status/:workspaceId",
+  authMiddleware,
+  getGithubIntegrationStatusController,
+);
 
 // logout
 router.post("/logout", authMiddleware, logout);
