@@ -1,7 +1,7 @@
 import "../config/env.js";
 import { Job, Worker } from "bullmq";
 import { DELETION_JOBS } from "../constants/constant.js";
-import connection from "../config/redis.js";
+import { connection } from "../config/redis.js";
 import { prisma } from "../lib/prisma.js";
 
 const deletionWorker = new Worker(

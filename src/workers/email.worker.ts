@@ -1,7 +1,7 @@
 import "../config/env.js";
 
 import { Job, Worker } from "bullmq";
-import connection from "../config/redis.js";
+import { connection } from "../config/redis.js";
 import {
   emailInvitationService,
   emailVerificationService,
