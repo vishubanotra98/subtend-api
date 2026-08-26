@@ -57,26 +57,41 @@ model FederatedCredential {
 }
 
 model GithubIntegration {
-  id                   String   @id @default(cuid())
-  workspaceId          String   @unique
+  id                   String        @id @default(cuid())
+  workspaceId          String        @unique
   access_token         String
   refresh_token        String
   accessTokenExpireAt  DateTime
   refreshTokenExpireAt DateTime
-  repo_name            String?
-  projectId            String?
+  projectRepos         ProjectRepo[]
+  workspace            Workspace     @relation(fields: [workspaceId], references: [id])
+}
+
+model ProjectRepo {
+  id                  String            @id @default(cuid())
+  projectId           String
+  githubIntegrationId String
+  repoFullName        String
+  repoId              Int               @unique
+  webhookId           String?
+  project             Project           @relation(fields: [projectId], references: [id])
+  githubIntegration   GithubIntegration @relation(fields: [githubIntegrationId], references: [id])
+
+  @@unique([projectId, repoId])
+  @@map("project_repos")
 }
 
 model Workspace {
-  id          String             @id @default(cuid())
-  name        String
-  members     WorkspaceMembers[]
-  teams       Team[]
-  statuses    Status[]
-  createdAt   DateTime           @default(now())
-  invitations Invitation[]
-  collabs     Collab[]
-  deletedAt   DateTime?
+  id                String             @id @default(cuid())
+  name              String
+  members           WorkspaceMembers[]
+  teams             Team[]
+  statuses          Status[]
+  createdAt         DateTime           @default(now())
+  invitations       Invitation[]
+  collabs           Collab[]
+  deletedAt         DateTime?
+  githubIntegration GithubIntegration?
 }
 
 model WorkspaceMembers {
@@ -121,10 +136,11 @@ model Project {
   issues          Issue[]
   projectCollabs  ProjectCollabs[]
 
-  createdAt   DateTime  @default(now())
-  targetDate  DateTime? @map("target_date")
-  completedAt DateTime? @map("completed_at")
-  deletedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  targetDate   DateTime?     @map("target_date")
+  completedAt  DateTime?     @map("completed_at")
+  deletedAt    DateTime?
+  projectRepos ProjectRepo[]
 }
 
 model Issue {

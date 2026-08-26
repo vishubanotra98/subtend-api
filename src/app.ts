@@ -14,6 +14,7 @@ import userRoutes from "./routes/user.route.js";
 import workspaceRoutes from "./routes/workspace.route.js";
 import issueRoutes from "./routes/issue.route.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
+import githubRoutes from "./routes/github.routes.js";
 
 const app = express();
 
@@ -56,6 +57,9 @@ app.use("/api/v1", issueRoutes);
 
 // dashboard routes
 app.use("/api/v1", dashboardRoutes);
+
+// github routes
+app.use("/api/v1", githubRoutes);
 
 app.use(errorHandler);
 export default app;
