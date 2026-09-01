@@ -92,6 +92,7 @@ model Workspace {
   collabs           Collab[]
   deletedAt         DateTime?
   githubIntegration GithubIntegration?
+  nextTicketNumber  Int                @default(1)
 }
 
 model WorkspaceMembers {
@@ -141,12 +142,13 @@ model Project {
   completedAt  DateTime?     @map("completed_at")
   deletedAt    DateTime?
   projectRepos ProjectRepo[]
+  gitHistories GitHistory[]
 }
 
 model Issue {
   id            String    @id @default(cuid())
   title         String
-  ticket_num    Int       @default(autoincrement())
+  ticket_num    Int
   description   String?   @db.Text
   priority      Priority? @default(LOW)
   blockedReason String?   @db.Text
@@ -161,7 +163,42 @@ model Issue {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  deletedAt DateTime?
+  deletedAt    DateTime?
+  gitHistories GitHistory[]
+}
+
+model GitHistory {
+  id String @id @default(cuid())
+
+  projectId    String
+  issueId      String
+  ticketNumber Int
+
+  repoId Int
+
+  type GitHistoryType
+
+  pullReqId Int?
+  title     String?
+  closedAt  DateTime?
+
+  head String?
+  base String?
+
+  pushHead String?
+  pushedAt DateTime?
+
+  commits Json?
+
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  issue   Issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+  @@index([projectId])
+  @@index([repoId])
+  @@map("git_history")
 }
 
 model Collab {
@@ -242,4 +279,9 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum GitHistoryType {
+  PUSH
+  PULL_REQUEST
 }

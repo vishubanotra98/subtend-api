@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
 import { getValidAccessToken } from "../utils/getValidAccessToken.js";
+import { BASE_URL_API } from "../constants/constant.js";
 
 export const fetchProjectRepoController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -68,7 +69,7 @@ export const fetchProjectRepoController = asyncHandler(
 export const connectProjectRepoController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { workspaceId, projectId } = req.params;
-    const { repoId, repoFullName } = req.body;
+    const { repoId, repoFullName, ownerName, repoName } = req.body;
 
     if (!workspaceId || typeof workspaceId !== "string") {
       return res.status(400).json({
@@ -100,12 +101,27 @@ export const connectProjectRepoController = asyncHandler(
       });
     }
 
-    if (!repoFullName || typeof repoFullName !== "string") {
+    if (
+      typeof repoFullName !== "string" ||
+      typeof repoName !== "string" ||
+      !repoFullName.trim() ||
+      !repoName.trim()
+    ) {
       return res.status(400).json({
         success: false,
         status: 400,
         code: "INVALID_REPOSITORY_NAME",
         message: "A valid repository name is required.",
+        data: null,
+      });
+    }
+
+    if (!ownerName || typeof ownerName !== "string") {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "INVALID_OWNER",
+        message: "A valid owner name is required.",
         data: null,
       });
     }
@@ -190,12 +206,52 @@ export const connectProjectRepoController = asyncHandler(
       });
     }
 
+    const accessToken = await getValidAccessToken(workspaceId);
+
+    const hookRes = await fetch(
+      `https://api.github.com/repos/${ownerName}/${repoName}/hooks`,
+
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: `Bearer ${accessToken}`,
+          "X-GitHub-Api-Version": "2026-03-10",
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          name: "web",
+          active: true,
+          events: ["push", "pull_request"],
+          config: {
+            url: `${BASE_URL_API}/api/v1/subtend/webhook`,
+            content_type: "json",
+            insecure_ssl: "0",
+          },
+        }),
+      },
+    );
+
+    const hookData = await hookRes?.json();
+
+    if (!hookRes.ok) {
+      return res.status(hookRes.status).json({
+        success: false,
+        status: hookRes.status,
+        code: "GITHUB_WEBHOOK_CREATION_FAILED",
+        message: "Failed to create GitHub webhook.",
+        data: null,
+      });
+    }
+
     const projectRepo = await prisma.projectRepo.create({
       data: {
         projectId,
         githubIntegrationId: githubIntegration.id,
         repoFullName,
         repoId,
+        webhookId: hookData?.id,
       },
     });
 
@@ -207,6 +263,16 @@ export const connectProjectRepoController = asyncHandler(
       data: {
         repository: projectRepo,
       },
+    });
+  },
+);
+
+export const gitWebhookController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    console.log("GitHub webhook:", req.body);
+
+    return res.status(200).json({
+      success: true,
     });
   },
 );

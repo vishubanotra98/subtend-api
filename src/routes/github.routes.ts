@@ -3,6 +3,7 @@ import {
   connectProjectRepoController,
   fetchProjectRepoController,
   getGithubReposController,
+  gitWebhookController,
 } from "../controller/github.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -23,5 +24,7 @@ router.get(
   authMiddleware,
   getGithubReposController,
 );
+
+router.post("/subtend/webhook", gitWebhookController);
 
 export default router;
