@@ -54,64 +54,170 @@ export const createIssueController = asyncHandler(
       { value: title, name: "Title" },
       { value: workspaceId, name: "Workspace" },
       { value: teamId, name: "Team" },
+      { value: projectId, name: "Project" },
+      { value: status, name: "Status" },
     ];
 
     const missingField = requiredFields.find((field) => !field.value);
 
-    if (!title || !workspaceId || !teamId) {
+    if (missingField) {
       return res.status(400).json({
         success: false,
         status: 400,
         code: "MISSING_FIELDS",
-        message: `${missingField?.name} is required`,
+        message: `${missingField.name} is required.`,
+        data: null,
+      });
+    }
+
+    if (!currentUser) {
+      return res.status(401).json({
+        success: false,
+        status: 401,
+        code: "UNAUTHORIZED",
+        message: "Authentication is required.",
+        data: null,
       });
     }
 
     const assigneeId = userId ?? currentUser;
 
-    const [actor, assignee, team, project, statusData] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: currentUser },
-      }),
+    const [actor, assignee, team, project, statusData, workspace] =
+      await Promise.all([
+        prisma.user.findUnique({
+          where: {
+            id: currentUser,
+          },
+        }),
 
-      prisma.user.findUnique({
-        where: { id: assigneeId },
-      }),
+        prisma.user.findUnique({
+          where: {
+            id: assigneeId,
+          },
+        }),
 
-      prisma.team.findUnique({
-        where: { id: teamId },
-      }),
+        prisma.team.findFirst({
+          where: {
+            id: teamId,
+            workspaceId,
+            deletedAt: null,
+          },
+        }),
 
-      prisma.project.findUnique({
-        where: { id: projectId },
-      }),
+        prisma.project.findFirst({
+          where: {
+            id: projectId,
+            teamId,
+            deletedAt: null,
+          },
+        }),
 
-      prisma.status.findUnique({
-        where: { id: status },
-      }),
-    ]);
+        prisma.status.findFirst({
+          where: {
+            id: status,
+            workspaceId,
+          },
+        }),
 
-    if (!project || !team || !statusData || !actor) {
+        prisma.workspace.findFirst({
+          where: {
+            id: workspaceId,
+            deletedAt: null,
+          },
+        }),
+      ]);
+
+    if (!actor) {
       return res.status(404).json({
         success: false,
         status: 404,
-        code: "RESOURCE_NOT_FOUND",
-        message: "One or more referenced resources could not be found.",
+        code: "ACTOR_NOT_FOUND",
+        message: "User creating the issue was not found.",
+        data: null,
       });
     }
 
-    const issue = await prisma.issue.create({
-      data: {
-        title,
-        description,
-        priority,
-        statusId: status,
-        assigneeId,
-        projectId,
-        blockedReason,
-        targetDate,
-        blockedAt,
-      },
+    if (!workspace) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "WORKSPACE_NOT_FOUND",
+        message: "Workspace not found.",
+        data: null,
+      });
+    }
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "TEAM_NOT_FOUND",
+        message: "Team not found in this workspace.",
+        data: null,
+      });
+    }
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "PROJECT_NOT_FOUND",
+        message: "Project not found in this team.",
+        data: null,
+      });
+    }
+
+    if (!statusData) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "STATUS_NOT_FOUND",
+        message: "Status not found in this workspace.",
+        data: null,
+      });
+    }
+
+    if (!assignee) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "ASSIGNEE_NOT_FOUND",
+        message: "Assignee not found.",
+        data: null,
+      });
+    }
+
+    const issue = await prisma.$transaction(async (tx) => {
+      const updatedWorkspace = await tx.workspace.update({
+        where: {
+          id: workspaceId,
+        },
+        data: {
+          nextTicketNumber: {
+            increment: 1,
+          },
+        },
+        select: {
+          nextTicketNumber: true,
+        },
+      });
+
+      const ticketNumber = updatedWorkspace.nextTicketNumber - 1;
+
+      return tx.issue.create({
+        data: {
+          title,
+          description,
+          priority,
+          statusId: status,
+          assigneeId,
+          projectId,
+          ticket_num: ticketNumber,
+          blockedReason,
+          targetDate,
+          blockedAt,
+        },
+      });
     });
 
     const loggerData = {
@@ -135,10 +241,11 @@ export const createIssueController = asyncHandler(
       issue: {
         id: issue.id,
         title: issue.title,
+        ticketNumber: issue.ticket_num,
         targetDate: issue.targetDate,
         blockedReason: issue.blockedReason,
         blockedAt: issue.blockedAt,
-        deletedAt: issue?.deletedAt,
+        deletedAt: issue.deletedAt,
       },
       beforeState: null,
       afterState: {
@@ -148,11 +255,11 @@ export const createIssueController = asyncHandler(
           color: statusData.color,
         },
         assignee: {
-          id: assignee?.id,
+          id: assignee.id,
           name:
-            assignee?.name ??
-            `${assignee?.firstName ?? ""} ${assignee?.lastName ?? ""}`.trim(),
-          image: assignee?.image,
+            assignee.name ??
+            `${assignee.firstName ?? ""} ${assignee.lastName ?? ""}`.trim(),
+          image: assignee.image,
         },
         priority,
       },

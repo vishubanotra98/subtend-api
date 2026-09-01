@@ -267,16 +267,6 @@ export const connectProjectRepoController = asyncHandler(
   },
 );
 
-export const gitWebhookController = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    console.log("GitHub webhook:", req.body);
-
-    return res.status(200).json({
-      success: true,
-    });
-  },
-);
-
 export const getGithubReposController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { workspaceId } = req.params;
@@ -347,6 +337,378 @@ export const getGithubReposController = asyncHandler(
       message: "GitHub repositories fetched successfully.",
       data: {
         repositories: repoList,
+      },
+    });
+  },
+);
+
+export const gitWebhookController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const event = req.headers["x-github-event"];
+    const payload = req.body;
+
+    if (!event || typeof event !== "string") {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "INVALID_GITHUB_EVENT",
+        message: "GitHub event header is missing.",
+        data: null,
+      });
+    }
+
+    const repoId = Number(payload?.repository?.id);
+
+    if (!Number.isInteger(repoId)) {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "INVALID_REPOSITORY_ID",
+        message: "A valid GitHub repository ID is required.",
+        data: null,
+      });
+    }
+
+    const projectRepo = await prisma.projectRepo.findUnique({
+      where: {
+        repoId,
+      },
+      select: {
+        projectId: true,
+      },
+    });
+
+    if (!projectRepo) {
+      return res.status(200).json({
+        success: true,
+        status: 200,
+        code: "REPOSITORY_NOT_CONNECTED",
+        message: "Repository is not connected to Subtend.",
+        data: null,
+      });
+    }
+
+    const project = await prisma.project.findUnique({
+      where: {
+        id: projectRepo.projectId,
+      },
+      select: {
+        id: true,
+        team: {
+          select: {
+            workspaceId: true,
+          },
+        },
+      },
+    });
+
+    if (!project?.team?.workspaceId) {
+      return res.status(200).json({
+        success: true,
+        status: 200,
+        code: "PROJECT_NOT_FOUND",
+        message: "Project associated with repository was not found.",
+        data: null,
+      });
+    }
+
+    const workspaceId = project.team.workspaceId;
+
+    if (event === "push") {
+      if (payload.ref !== "refs/heads/main") {
+        return res.status(200).json({
+          success: true,
+          status: 200,
+          code: "PUSH_IGNORED",
+          message: "Push was not made to the main branch.",
+          data: null,
+        });
+      }
+
+      const commits = payload.commits;
+
+      if (!Array.isArray(commits) || commits.length === 0) {
+        return res.status(200).json({
+          success: true,
+          status: 200,
+          code: "NO_COMMITS",
+          message: "No commits found in push.",
+          data: null,
+        });
+      }
+
+      for (const commit of commits) {
+        if (!commit?.id || typeof commit.message !== "string") {
+          continue;
+        }
+
+        const ticketMatch = commit.message.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+
+        if (!ticketMatch) {
+          continue;
+        }
+
+        const ticketNumber = Number(ticketMatch[1]);
+
+        if (!Number.isInteger(ticketNumber)) {
+          continue;
+        }
+
+        const issue = await prisma.issue.findFirst({
+          where: {
+            ticket_num: ticketNumber,
+            project: {
+              team: {
+                workspaceId,
+              },
+            },
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (!issue) {
+          continue;
+        }
+
+        const existingHistory = await prisma.gitHistory.findFirst({
+          where: {
+            repoId,
+            issueId: issue.id,
+            type: "PUSH",
+            pushHead: commit.id,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (existingHistory) {
+          continue;
+        }
+
+        await prisma.gitHistory.create({
+          data: {
+            projectId: project.id,
+            issueId: issue.id,
+            ticketNumber,
+            repoId,
+
+            type: "PUSH",
+
+            head: payload.after ?? null,
+            base: payload.before ?? null,
+
+            pushHead: commit.id,
+
+            pushedAt: commit.timestamp
+              ? new Date(commit.timestamp)
+              : new Date(),
+
+            commits: commit,
+          },
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        status: 200,
+        code: "PUSH_PROCESSED",
+        message: "GitHub push processed successfully.",
+        data: null,
+      });
+    }
+
+    if (event === "pull_request") {
+      const pullRequest = payload.pull_request;
+
+      if (!pullRequest) {
+        return res.status(400).json({
+          success: false,
+          status: 400,
+          code: "INVALID_PULL_REQUEST",
+          message: "Pull request data is missing.",
+          data: null,
+        });
+      }
+
+      if (
+        payload.action !== "closed" ||
+        pullRequest.merged !== true ||
+        pullRequest.base?.ref !== "main"
+      ) {
+        return res.status(200).json({
+          success: true,
+          status: 200,
+          code: "PULL_REQUEST_IGNORED",
+          message: "Pull request is not a merged PR into main.",
+          data: null,
+        });
+      }
+
+      const ticketMatch = pullRequest.title?.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+
+      if (!ticketMatch) {
+        return res.status(200).json({
+          success: true,
+          status: 200,
+          code: "TICKET_REFERENCE_NOT_FOUND",
+          message: "No Subtend ticket reference found in pull request.",
+          data: null,
+        });
+      }
+
+      const ticketNumber = Number(ticketMatch[1]);
+
+      if (!Number.isInteger(ticketNumber)) {
+        return res.status(200).json({
+          success: true,
+          status: 200,
+          code: "INVALID_TICKET_REFERENCE",
+          message: "Invalid Subtend ticket reference.",
+          data: null,
+        });
+      }
+
+      const issue = await prisma.issue.findFirst({
+        where: {
+          ticket_num: ticketNumber,
+          project: {
+            team: {
+              workspaceId,
+            },
+          },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!issue) {
+        return res.status(200).json({
+          success: true,
+          status: 200,
+          code: "ISSUE_NOT_FOUND",
+          message: "Referenced Subtend issue was not found.",
+          data: null,
+        });
+      }
+
+      const existingHistory = await prisma.gitHistory.findFirst({
+        where: {
+          repoId,
+          pullReqId: pullRequest.id,
+          type: "PULL_REQUEST",
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (existingHistory) {
+        return res.status(200).json({
+          success: true,
+          status: 200,
+          code: "PULL_REQUEST_ALREADY_RECORDED",
+          message: "Pull request history already exists.",
+          data: null,
+        });
+      }
+
+      await prisma.gitHistory.create({
+        data: {
+          projectId: project.id,
+          issueId: issue.id,
+          ticketNumber,
+          repoId,
+
+          type: "PULL_REQUEST",
+
+          pullReqId: pullRequest.id,
+
+          title: pullRequest.title ?? null,
+
+          closedAt: pullRequest.closed_at
+            ? new Date(pullRequest.closed_at)
+            : null,
+
+          head: pullRequest.head?.ref ?? null,
+
+          base: pullRequest.base?.ref ?? null,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        status: 200,
+        code: "PULL_REQUEST_PROCESSED",
+        message: "Merged pull request processed successfully.",
+        data: null,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "GITHUB_EVENT_IGNORED",
+      message: `GitHub event "${event}" is not handled.`,
+      data: null,
+    });
+  },
+);
+
+export const issueGithubHistoryController = asyncHandler(
+  async (req: Request, res: Response, next: NextFunction) => {
+    const { issueId } = req.params;
+
+    if (!issueId || typeof issueId !== "string") {
+      return res.status(400).json({
+        success: false,
+        status: 400,
+        code: "INVALID_ISSUE_ID",
+        message: "A valid issue ID is required.",
+        data: null,
+      });
+    }
+
+    const issue = await prisma.issue.findUnique({
+      where: {
+        id: issueId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        status: 404,
+        code: "ISSUE_NOT_FOUND",
+        message: "Issue not found.",
+        data: null,
+      });
+    }
+
+    const gitHistories = await prisma.gitHistory.findMany({
+      where: {
+        issueId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      status: 200,
+      code: "GITHUB_HISTORY_FETCHED",
+      message: "GitHub history fetched successfully.",
+      data: {
+        histories: gitHistories,
       },
     });
   },

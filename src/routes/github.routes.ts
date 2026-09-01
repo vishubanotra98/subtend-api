@@ -4,6 +4,7 @@ import {
   fetchProjectRepoController,
   getGithubReposController,
   gitWebhookController,
+  issueGithubHistoryController,
 } from "../controller/github.controller.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
@@ -24,7 +25,11 @@ router.get(
   authMiddleware,
   getGithubReposController,
 );
-
 router.post("/subtend/webhook", gitWebhookController);
+router.get(
+  "/issue/:issueId/github/history",
+  authMiddleware,
+  issueGithubHistoryController,
+);
 
 export default router;
