@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "git_history" ALTER COLUMN "ticketNumber" SET DATA TYPE TEXT,
+ALTER COLUMN "pullReqId" SET DATA TYPE TEXT;

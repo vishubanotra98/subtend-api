@@ -203,7 +203,7 @@ export const createIssueController = asyncHandler(
       });
 
       const projectInitials = project?.name
-        ?.split(" ")
+        ?.split("")
         .slice(0, 3)
         .join("")
         .toUpperCase();

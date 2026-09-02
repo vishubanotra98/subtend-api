@@ -172,13 +172,13 @@ model GitHistory {
 
   projectId    String
   issueId      String
-  ticketNumber Int
+  ticketNumber String
 
   repoId Int
 
   type GitHistoryType
 
-  pullReqId Int?
+  pullReqId String?
   title     String?
   closedAt  DateTime?
 

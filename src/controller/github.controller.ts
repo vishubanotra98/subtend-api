@@ -390,7 +390,7 @@ export const gitWebhookController = asyncHandler(
 
     const project = await prisma.project.findUnique({
       where: {
-        id: projectRepo.projectId,
+        id: projectRepo?.projectId,
       },
       select: {
         id: true,
@@ -425,7 +425,7 @@ export const gitWebhookController = asyncHandler(
         });
       }
 
-      const commits = payload.commits;
+      const commits = payload?.commits;
 
       if (!Array.isArray(commits) || commits.length === 0) {
         return res.status(200).json({
@@ -442,7 +442,9 @@ export const gitWebhookController = asyncHandler(
           continue;
         }
 
-        const ticketNumber = commit.message.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+        const ticketNumber = commit.message.match(
+          /\b[A-Z][A-Z0-9]*-(\d+)\b/,
+        )[0];
 
         if (!ticketNumber) {
           continue;
@@ -542,8 +544,9 @@ export const gitWebhookController = asyncHandler(
         });
       }
 
-      
-      const ticketNumber  = pullRequest.title?.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+      const ticketNumber = pullRequest.title?.match(
+        /\b[A-Z][A-Z0-9]*-(\d+)\b/,
+      )[0];
 
       if (!ticketNumber) {
         return res.status(200).json({
@@ -583,7 +586,7 @@ export const gitWebhookController = asyncHandler(
       const existingHistory = await prisma.gitHistory.findFirst({
         where: {
           repoId,
-          pullReqId: pullRequest.id,
+          pullReqId: String(pullRequest.id),
           type: "PULL_REQUEST",
         },
         select: {
@@ -610,7 +613,7 @@ export const gitWebhookController = asyncHandler(
 
           type: "PULL_REQUEST",
 
-          pullReqId: pullRequest.id,
+          pullReqId: String(pullRequest.id),
 
           title: pullRequest.title ?? null,
 
