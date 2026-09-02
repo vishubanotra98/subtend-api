@@ -202,7 +202,13 @@ export const createIssueController = asyncHandler(
         },
       });
 
-      const ticketNumber = updatedWorkspace.nextTicketNumber - 1;
+      const projectInitials = project?.name
+        ?.split("")
+        .slice(0, 3)
+        .join("")
+        .toUpperCase();
+
+      const ticketNumber = `${projectInitials}-${updatedWorkspace.nextTicketNumber - 1}`;
 
       return tx.issue.create({
         data: {

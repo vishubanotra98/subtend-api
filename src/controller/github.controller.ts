@@ -390,7 +390,7 @@ export const gitWebhookController = asyncHandler(
 
     const project = await prisma.project.findUnique({
       where: {
-        id: projectRepo.projectId,
+        id: projectRepo?.projectId,
       },
       select: {
         id: true,
@@ -425,7 +425,7 @@ export const gitWebhookController = asyncHandler(
         });
       }
 
-      const commits = payload.commits;
+      const commits = payload?.commits;
 
       if (!Array.isArray(commits) || commits.length === 0) {
         return res.status(200).json({
@@ -442,15 +442,11 @@ export const gitWebhookController = asyncHandler(
           continue;
         }
 
-        const ticketMatch = commit.message.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+        const ticketNumber = commit.message.match(
+          /\b[A-Z][A-Z0-9]*-(\d+)\b/,
+        )[0];
 
-        if (!ticketMatch) {
-          continue;
-        }
-
-        const ticketNumber = Number(ticketMatch[1]);
-
-        if (!Number.isInteger(ticketNumber)) {
+        if (!ticketNumber) {
           continue;
         }
 
@@ -548,26 +544,16 @@ export const gitWebhookController = asyncHandler(
         });
       }
 
-      const ticketMatch = pullRequest.title?.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+      const ticketNumber = pullRequest.title?.match(
+        /\b[A-Z][A-Z0-9]*-(\d+)\b/,
+      )[0];
 
-      if (!ticketMatch) {
+      if (!ticketNumber) {
         return res.status(200).json({
           success: true,
           status: 200,
           code: "TICKET_REFERENCE_NOT_FOUND",
           message: "No Subtend ticket reference found in pull request.",
-          data: null,
-        });
-      }
-
-      const ticketNumber = Number(ticketMatch[1]);
-
-      if (!Number.isInteger(ticketNumber)) {
-        return res.status(200).json({
-          success: true,
-          status: 200,
-          code: "INVALID_TICKET_REFERENCE",
-          message: "Invalid Subtend ticket reference.",
           data: null,
         });
       }
@@ -600,7 +586,7 @@ export const gitWebhookController = asyncHandler(
       const existingHistory = await prisma.gitHistory.findFirst({
         where: {
           repoId,
-          pullReqId: pullRequest.id,
+          pullReqId: String(pullRequest.id),
           type: "PULL_REQUEST",
         },
         select: {
@@ -627,7 +613,7 @@ export const gitWebhookController = asyncHandler(
 
           type: "PULL_REQUEST",
 
-          pullReqId: pullRequest.id,
+          pullReqId: String(pullRequest.id),
 
           title: pullRequest.title ?? null,
 

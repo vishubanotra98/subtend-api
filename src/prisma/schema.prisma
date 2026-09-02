@@ -148,7 +148,7 @@ model Project {
 model Issue {
   id            String    @id @default(cuid())
   title         String
-  ticket_num    Int
+  ticket_num    String
   description   String?   @db.Text
   priority      Priority? @default(LOW)
   blockedReason String?   @db.Text
@@ -172,13 +172,13 @@ model GitHistory {
 
   projectId    String
   issueId      String
-  ticketNumber Int
+  ticketNumber String
 
   repoId Int
 
   type GitHistoryType
 
-  pullReqId Int?
+  pullReqId String?
   title     String?
   closedAt  DateTime?
 
