@@ -442,15 +442,9 @@ export const gitWebhookController = asyncHandler(
           continue;
         }
 
-        const ticketMatch = commit.message.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+        const ticketNumber = commit.message.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
 
-        if (!ticketMatch) {
-          continue;
-        }
-
-        const ticketNumber = Number(ticketMatch[1]);
-
-        if (!Number.isInteger(ticketNumber)) {
+        if (!ticketNumber) {
           continue;
         }
 
@@ -548,26 +542,15 @@ export const gitWebhookController = asyncHandler(
         });
       }
 
-      const ticketMatch = pullRequest.title?.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
+      
+      const ticketNumber  = pullRequest.title?.match(/\b[A-Z][A-Z0-9]*-(\d+)\b/);
 
-      if (!ticketMatch) {
+      if (!ticketNumber) {
         return res.status(200).json({
           success: true,
           status: 200,
           code: "TICKET_REFERENCE_NOT_FOUND",
           message: "No Subtend ticket reference found in pull request.",
-          data: null,
-        });
-      }
-
-      const ticketNumber = Number(ticketMatch[1]);
-
-      if (!Number.isInteger(ticketNumber)) {
-        return res.status(200).json({
-          success: true,
-          status: 200,
-          code: "INVALID_TICKET_REFERENCE",
-          message: "Invalid Subtend ticket reference.",
           data: null,
         });
       }
