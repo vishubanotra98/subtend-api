@@ -1,13 +1,11 @@
 import "./config/env.js";
 import "./workers/email.worker.js";
 import "./workers/deletion.worker.js";
-import { server } from "./app.js";
-import { io } from "./app.js";
+import app, { server } from "./app.js";
 import { PORT } from "./constants/constant.js";
+import { initWebSocketServer } from "./services/socket.service.js";
 
-io.on("connection", (socket) => {
-  console.log("A client connected:", socket.id);
-});
+initWebSocketServer(server);
 
 server.listen(PORT, () => {
   console.log(`Server is running on PORT : ${PORT}`);

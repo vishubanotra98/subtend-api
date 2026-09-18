@@ -1,8 +1,7 @@
 import express from "express";
 import { createServer } from "http";
-import { Server } from "socket.io";
 import cors from "cors";
-import morgon from "morgan";
+import morgan from "morgan";
 import cookieParser from "cookie-parser";
 import { ALLOWED_ORIGINS } from "./constants/constant.js";
 import { errorHandler } from "./middleware/error.middleware.js";
@@ -18,8 +17,8 @@ import githubRoutes from "./routes/github.routes.js";
 
 const app = express();
 
-if (process.env.NODE_ENV != "production") {
-  app.use(morgon("dev"));
+if (process.env.NODE_ENV !== "production") {
+  app.use(morgan("dev"));
 }
 
 app.use(cookieParser());
@@ -32,34 +31,15 @@ app.use(
 app.use(express.json());
 
 export const server = createServer(app);
-export const io = new Server(server, {
-  cors: {
-    origin: ALLOWED_ORIGINS,
-    methods: ["GET", "POST", "DELETE", "PATCH", "PUT"],
-    credentials: true,
-  },
-});
 
-// healthCheckRoute
 app.use("/api/v1", healthCheckRoute);
-
-// Auth Routes
 app.use("/auth", authRoutes);
-
-// user routes
 app.use("/api/v1", userRoutes);
-
-// Workspace Routes
 app.use("/api/v1", workspaceRoutes);
-
-// issue routes
 app.use("/api/v1", issueRoutes);
-
-// dashboard routes
 app.use("/api/v1", dashboardRoutes);
-
-// github routes
 app.use("/api/v1", githubRoutes);
 
 app.use(errorHandler);
+
 export default app;
