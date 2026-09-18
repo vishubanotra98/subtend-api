@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { prisma } from "../lib/prisma.js";
 import { activityLogger } from "../utils/activityHandler.js";
 import { ActivityAction } from "../constants/constant.js";
+import { broadcastToWorkspace } from "../services/socket.service.js";
 
 export const fetchIssuesController = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
@@ -991,6 +992,8 @@ export const moveCardController = asyncHandler(
     activityLogger(loggerData).catch((err) =>
       console.error("Activity log failed:", err),
     );
+    
+    broadcastToWorkspace(workspaceId, "ISSUE_MOVED", updatedIssue);
 
     return res.status(200).json({
       success: true,
